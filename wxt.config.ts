@@ -12,6 +12,8 @@ export default defineConfig({
       'https://api.openai.com/*',
       'https://api.anthropic.com/*',
       'http://localhost:11434/*',
+      'http://127.0.0.1:3425/*',
+      'http://localhost:3425/*',
     ],
     action: {
       default_title: 'Click to open PaperPilot Side Panel',

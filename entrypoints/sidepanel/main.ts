@@ -1,5 +1,5 @@
-import { getStoredConfig, saveStoredConfig, PROVIDER_DEFAULTS, UserConfig, ProviderType } from '@/services/storage';
-import { streamAIChat, ACADEMIC_PROMPTS, ChatMessage } from '@/services/ai';
+import { getStoredConfig, saveStoredConfig, PROVIDER_DEFAULTS, UserConfig, ProviderType } from '../../src/services/storage';
+import { streamAIChat, ACADEMIC_PROMPTS, ChatMessage } from '../../src/services/ai';
 
 // 运行时状态
 let currentConfig: UserConfig;
@@ -38,6 +38,7 @@ const elements = {
   inputApiKey: document.getElementById('input-api-key') as HTMLInputElement,
   inputBaseUrl: document.getElementById('input-base-url') as HTMLInputElement,
   inputModel: document.getElementById('input-model') as HTMLInputElement,
+  modelSuggestions: document.getElementById('model-suggestions') as HTMLDataListElement,
   btnSaveSettings: document.getElementById('btn-save-settings') as HTMLButtonElement,
   btnTestConnection: document.getElementById('btn-test-connection') as HTMLButtonElement,
   settingsStatus: document.getElementById('settings-status') as HTMLDivElement,
@@ -49,6 +50,77 @@ async function init() {
   updateUIFromConfig();
   setupEventListeners();
   listenToRuntimeMessages();
+  await hydrateFromSessionStorage();
+  void refreshModelSuggestions(currentConfig.provider, currentConfig.baseUrl);
+}
+
+// 从本地 Magpie 网关动态拉取可用模型列表用于输入框自动补全
+async function refreshModelSuggestions(provider: ProviderType, baseUrl: string) {
+  if (!elements.modelSuggestions) return;
+  elements.modelSuggestions.innerHTML = '';
+  if (provider !== 'magpie') return;
+
+  try {
+    const normalized = baseUrl.replace(/\/+$/, '');
+    const modelsUrl = normalized.endsWith('/v1') ? `${normalized}/models` : `${normalized}/v1/models`;
+    const res = await fetch(modelsUrl);
+    if (!res.ok) return;
+    const json = await res.json();
+    const models = Array.isArray(json?.data) ? json.data : [];
+    for (const item of models) {
+      if (typeof item?.id === 'string') {
+        const opt = document.createElement('option');
+        opt.value = item.id;
+        if (item.display_name) opt.label = item.display_name;
+        elements.modelSuggestions.appendChild(opt);
+      }
+    }
+  } catch {
+    // 网关未启动时静默降级，仍允许手动输入模型名
+  }
+}
+
+// 同步冷启动前捕获的论文元数据与划词内容
+async function hydrateFromSessionStorage() {
+  if (!chrome.storage.session) return;
+  const session = await chrome.storage.session.get(['latestPaperData', 'latestSelection']);
+  if (session.latestPaperData) {
+    applyPaperMetadata(session.latestPaperData);
+  }
+  if (session.latestSelection?.selectedText) {
+    applyCapturedSelection(
+      session.latestSelection.selectedText,
+      Boolean(session.latestSelection.pendingExplain)
+    );
+    if (session.latestSelection.pendingExplain) {
+      await chrome.storage.session.set({
+        latestSelection: { ...session.latestSelection, pendingExplain: false },
+      });
+    }
+  }
+}
+
+function applyPaperMetadata(payload: typeof currentPaperData) {
+  currentPaperData = payload;
+  elements.paperTitle.textContent = currentPaperData.title || '已捕获学术页面';
+  const authors = currentPaperData.authors?.slice(0, 3).join(', ');
+  elements.paperAuthors.textContent = authors ? `${authors} 等` : '';
+}
+
+function applyCapturedSelection(selectedText: string, autoExplain: boolean) {
+  currentSelection = selectedText;
+  elements.selectionPreview.textContent = currentSelection;
+
+  // 自动切换到划词 Tab
+  elements.tabButtons.forEach((b) => b.classList.remove('active'));
+  elements.tabPanes.forEach((p) => p.classList.remove('active'));
+  const selectionTabBtn = document.querySelector<HTMLButtonElement>('[data-tab="tab-selection"]');
+  selectionTabBtn?.classList.add('active');
+  document.getElementById('tab-selection')?.classList.add('active');
+
+  if (autoExplain) {
+    elements.btnExplainFormula.click();
+  }
 }
 
 // 同步配置到 UI
@@ -83,6 +155,7 @@ function setupEventListeners() {
     if (defaults) {
       elements.inputBaseUrl.value = defaults.baseUrl;
       elements.inputModel.value = defaults.model;
+      void refreshModelSuggestions(provider, defaults.baseUrl);
     }
   });
 
@@ -194,7 +267,7 @@ function setupEventListeners() {
 
 // 统一流式推理调度
 function runInference(messages: ChatMessage[], targetEl: HTMLElement) {
-  if (!currentConfig.apiKey && currentConfig.provider !== 'ollama') {
+  if (!currentConfig.apiKey && currentConfig.provider !== 'ollama' && currentConfig.provider !== 'magpie') {
     targetEl.innerHTML = `<span style="color:#dc2626;">⚠️ 请先切换到【设置】标签页配置你的 API Key。</span>`;
     return;
   }
@@ -230,22 +303,12 @@ function runInference(messages: ChatMessage[], targetEl: HTMLElement) {
 function listenToRuntimeMessages() {
   chrome.runtime.onMessage.addListener((message) => {
     if (message.action === 'PAPER_METADATA_EXTRACTED') {
-      currentPaperData = message.payload;
-      elements.paperTitle.textContent = currentPaperData.title || '已捕获学术页面';
-      elements.paperAuthors.textContent = currentPaperData.authors?.slice(0, 3).join(', ') + ' 等';
+      applyPaperMetadata(message.payload);
     } else if (message.action === 'SELECTION_TEXT_CAPTURED') {
-      currentSelection = message.payload.selectedText;
-      elements.selectionPreview.textContent = currentSelection;
-
-      // 自动切换到划词 Tab
-      elements.tabButtons.forEach((b) => b.classList.remove('active'));
-      elements.tabPanes.forEach((p) => p.classList.remove('active'));
-      const selectionTabBtn = document.querySelector<HTMLButtonElement>('[data-tab="tab-selection"]');
-      selectionTabBtn?.classList.add('active');
-      document.getElementById('tab-selection')?.classList.add('active');
-
-      // 默认自动触发公式与直觉解读
-      elements.btnExplainFormula.click();
+      applyCapturedSelection(message.payload.selectedText, true);
+      chrome.storage.session?.set({
+        latestSelection: { ...message.payload, pendingExplain: false },
+      }).catch(() => {});
     }
   });
 }

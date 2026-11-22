@@ -13,7 +13,7 @@
       <div class="brand">
         <span class="logo-icon">🎓</span>
         <span class="logo-text">PaperPilot</span>
-        <span class="badge" id="provider-badge">DeepSeek</span>
+        <span class="badge" id="provider-badge">Magpie</span>
       </div>
       <div class="tabs">
         <button class="tab-btn active" data-tab="tab-overview">全文速读</button>
@@ -85,6 +85,7 @@
         <div class="form-group">
           <label for="select-provider">AI 提供商 (Provider)</label>
           <select id="select-provider" class="form-control">
+            <option value="magpie">本地 Magpie 网关 (127.0.0.1:3425)</option>
             <option value="deepseek">DeepSeek (推荐·数学推理最强)</option>
             <option value="openai">OpenAI (GPT-4o / GPT-4o-mini)</option>
             <option value="anthropic">Anthropic (Claude 3.5 Sonnet)</option>
@@ -104,7 +105,8 @@
 
         <div class="form-group">
           <label for="input-model">模型名称 (Model Name)</label>
-          <input type="text" id="input-model" class="form-control" />
+          <input type="text" id="input-model" class="form-control" list="model-suggestions" />
+          <datalist id="model-suggestions"></datalist>
         </div>
 
         <div class="form-actions">

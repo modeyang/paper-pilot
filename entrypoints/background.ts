@@ -12,7 +12,15 @@ export default defineBackground(() => {
 
   // 监听来自 Content Script 的划词或快速唤起请求
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.action === 'OPEN_SIDEPANEL_REQUEST') {
+    if (message.action === 'PAPER_METADATA_EXTRACTED' && message.payload) {
+      chrome.storage.session
+        ?.set({ latestPaperData: message.payload })
+        .catch((err) => console.error('[PaperPilot] Failed to cache paper metadata:', err));
+    } else if (message.action === 'SELECTION_TEXT_CAPTURED' && message.payload) {
+      chrome.storage.session
+        ?.set({ latestSelection: { ...message.payload, pendingExplain: true } })
+        .catch((err) => console.error('[PaperPilot] Failed to cache selection:', err));
+    } else if (message.action === 'OPEN_SIDEPANEL_REQUEST') {
       if (sender.tab && sender.tab.id && chrome.sidePanel && chrome.sidePanel.open) {
         chrome.sidePanel.open({ tabId: sender.tab.id })
           .then(() => sendResponse({ success: true }))

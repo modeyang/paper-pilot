@@ -48,14 +48,19 @@ export async function streamAIChat(
   let fullOutput = '';
 
   try {
+    const normalizedBaseUrl = config.baseUrl.replace(/\/+$/, '');
+
     if (config.provider === 'anthropic') {
       // Anthropic Claude 格式
       const systemMsg = messages.find((m) => m.role === 'system')?.content || '';
       const userMsgs = messages
         .filter((m) => m.role !== 'system')
         .map((m) => ({ role: m.role, content: m.content }));
+      const anthropicUrl = normalizedBaseUrl.endsWith('/v1')
+        ? `${normalizedBaseUrl}/messages`
+        : `${normalizedBaseUrl}/v1/messages`;
 
-      const res = await fetch(`${config.baseUrl}/v1/messages`, {
+      const res = await fetch(anthropicUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -85,11 +90,13 @@ export async function streamAIChat(
         }
       });
     } else {
-      // OpenAI 兼容格式 (含 DeepSeek, 本地 Ollama, OpenAI)
+      // OpenAI 兼容格式 (含本地 Magpie 网关, DeepSeek, 本地 Ollama, OpenAI)
       const url =
-        config.provider === 'ollama'
-          ? `${config.baseUrl}/v1/chat/completions`
-          : `${config.baseUrl}/chat/completions`;
+        config.provider === 'ollama' || config.provider === 'magpie'
+          ? normalizedBaseUrl.endsWith('/v1')
+            ? `${normalizedBaseUrl}/chat/completions`
+            : `${normalizedBaseUrl}/v1/chat/completions`
+          : `${normalizedBaseUrl}/chat/completions`;
 
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',

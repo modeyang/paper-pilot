@@ -1,4 +1,4 @@
-export type ProviderType = 'deepseek' | 'openai' | 'anthropic' | 'ollama';
+export type ProviderType = 'magpie' | 'deepseek' | 'openai' | 'anthropic' | 'ollama';
 
 export interface UserConfig {
   provider: ProviderType;
@@ -10,14 +10,18 @@ export interface UserConfig {
 }
 
 export const DEFAULT_CONFIG: UserConfig = {
-  provider: 'deepseek',
+  provider: 'magpie',
   apiKey: '',
-  baseUrl: 'https://api.deepseek.com',
-  model: 'deepseek-chat',
+  baseUrl: 'http://127.0.0.1:3425/v1',
+  model: 'auto/deepseek-v4.1-flash',
   systemPromptPreset: 'intuition',
 };
 
 export const PROVIDER_DEFAULTS: Record<ProviderType, { baseUrl: string; model: string }> = {
+  magpie: {
+    baseUrl: 'http://127.0.0.1:3425/v1',
+    model: 'auto/deepseek-v4.1-flash',
+  },
   deepseek: {
     baseUrl: 'https://api.deepseek.com',
     model: 'deepseek-chat',
