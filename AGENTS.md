@@ -95,3 +95,17 @@ Agents picking up tasks in this repo should be aware of the following remaining 
 1. **Content Script Match Scope**: `entrypoints/content.ts` includes `'<all_urls>'` in `matches`, whereas `docs/01-PRD-REQUIREMENTS.md` recommends avoiding `<all_urls>` for Chrome Web Store review compliance.
 2. **Output Rendering**: `entrypoints/sidepanel/main.ts` currently assigns streamed output to `targetEl.textContent`; Markdown and LaTeX/KaTeX rendering (Roadmap `#8`) are not yet implemented.
 3. **Extension Icons**: `docs/04-STORE-PUBLISHING-GUIDE.md` expects `16`/`48`/`128` px PNG icons in the manifest; currently only `assets/icon.svg` exists and `wxt.config.ts` does not configure `icons`.
+
+## Agent skills
+
+### Issue tracker
+
+Issues and specs live in GitHub Issues (`modeyang/paper-pilot`, via `gh` CLI). See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Uses the default five triage labels (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context layout (`GLOSSARY.md` and `docs/adr/` at the repo root). See `docs/agents/domain.md`.
