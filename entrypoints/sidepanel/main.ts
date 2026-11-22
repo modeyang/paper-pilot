@@ -3,15 +3,18 @@ import { getStoredConfig, saveStoredConfig, PROVIDER_DEFAULTS, UserConfig, Provi
 import { streamAIChat, ACADEMIC_PROMPTS, ChatMessage } from '../../src/services/ai';
 import { renderMarkdownInto } from '../../src/utils/markdown';
 
-// 运行时状态
-let currentConfig: UserConfig;
-let activeAbortController: AbortController | null = null;
-let currentPaperData = {
+const EMPTY_PAPER_DATA = {
   title: '',
   abstract: '',
   authors: [] as string[],
   url: '',
 };
+const DEFAULT_PAPER_PLACEHOLDER = '未检测到学术论文（请打开 arXiv / bioRxiv / PubMed 页面或手动输入）';
+
+// 运行时状态
+let currentConfig: UserConfig;
+let activeAbortController: AbortController | null = null;
+let currentPaperData = { ...EMPTY_PAPER_DATA };
 let currentSelection = '';
 
 // DOM 元素引用
@@ -90,10 +93,31 @@ async function refreshModelSuggestions(provider: ProviderType, baseUrl: string) 
 // 同步冷启动前捕获的论文元数据与划词内容
 async function hydrateFromSessionStorage() {
   if (!chrome.storage.session) return;
-  const session = await chrome.storage.session.get(['latestPaperData', 'latestSelection']);
-  if (session.latestPaperData) {
-    applyPaperMetadata(session.latestPaperData);
+  const session = await chrome.storage.session.get(['paperByTab', 'latestPaperData', 'latestSelection']);
+
+  let initialPaper: typeof currentPaperData | null = null;
+  try {
+    const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (activeTab?.id && !activeTab.url?.startsWith('chrome-extension://')) {
+      const byTab = (session.paperByTab as Record<string, typeof currentPaperData>) || {};
+      initialPaper = byTab[String(activeTab.id)] || null;
+      if (!initialPaper) {
+        const resp = await chrome.tabs
+          .sendMessage(activeTab.id, { action: 'EXTRACT_PAPER_METADATA_REQUEST' })
+          .catch(() => null);
+        if (resp?.paper) {
+          initialPaper = resp.paper;
+        }
+      }
+    } else if (session.latestPaperData) {
+      initialPaper = session.latestPaperData;
+    }
+  } catch {
+    initialPaper = session.latestPaperData || null;
   }
+
+  applyPaperMetadata(initialPaper);
+
   if (session.latestSelection?.selectedText) {
     applyCapturedSelection(
       session.latestSelection.selectedText,
@@ -107,7 +131,13 @@ async function hydrateFromSessionStorage() {
   }
 }
 
-function applyPaperMetadata(payload: typeof currentPaperData) {
+function applyPaperMetadata(payload: typeof currentPaperData | null) {
+  if (!payload || (!payload.title?.trim() && !payload.abstract?.trim())) {
+    currentPaperData = { ...EMPTY_PAPER_DATA };
+    elements.paperTitle.textContent = DEFAULT_PAPER_PLACEHOLDER;
+    elements.paperAuthors.textContent = '';
+    return;
+  }
   currentPaperData = payload;
   elements.paperTitle.textContent = currentPaperData.title || '已捕获学术页面';
   const authors = currentPaperData.authors?.slice(0, 3).join(', ');
@@ -214,7 +244,12 @@ function setupEventListeners() {
       });
       if (resp?.paper) {
         applyPaperMetadata(resp.paper);
-        chrome.storage.session?.set({ latestPaperData: resp.paper }).catch(() => {});
+        if (chrome.storage.session) {
+          const existing = await chrome.storage.session.get(['paperByTab']);
+          const paperByTab = (existing.paperByTab as Record<string, typeof currentPaperData>) || {};
+          paperByTab[String(activeTab.id)] = resp.paper;
+          await chrome.storage.session.set({ paperByTab, latestPaperData: resp.paper });
+        }
       } else {
         elements.overviewOutput.innerHTML =
           '<span style="color:#b45309;">⚠️ 当前页面未识别到学术论文元数据，可展开上方「手动粘贴论文标题/摘要」自行载入。</span>';
@@ -359,9 +394,13 @@ function runInference(messages: ChatMessage[], targetEl: HTMLElement) {
 
 // 监听扩展内部消息
 function listenToRuntimeMessages() {
-  chrome.runtime.onMessage.addListener((message) => {
-    if (message.action === 'PAPER_METADATA_EXTRACTED') {
-      applyPaperMetadata(message.payload);
+  chrome.runtime.onMessage.addListener((message, sender) => {
+    if (message.action === 'ACTIVE_TAB_PAPER_CHANGED') {
+      applyPaperMetadata(message.payload?.paper ?? null);
+    } else if (message.action === 'PAPER_METADATA_EXTRACTED') {
+      if (!sender.tab || sender.tab.active) {
+        applyPaperMetadata(message.payload);
+      }
     } else if (message.action === 'SELECTION_TEXT_CAPTURED') {
       applyCapturedSelection(message.payload.selectedText, true);
       chrome.storage.session?.set({
