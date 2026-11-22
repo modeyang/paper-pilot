@@ -16,6 +16,7 @@ export async function captureAcceptanceScreenshot(
 ) {
   fs.mkdirSync(ARTIFACTS_DIR, { recursive: true });
   await page.setViewportSize({ width, height });
+  await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
   const outPath = path.join(ARTIFACTS_DIR, filename);
   await page.screenshot({ path: outPath, fullPage });
   return outPath;

@@ -23,6 +23,11 @@ const elements = {
   // Overview Tab
   paperTitle: document.getElementById('paper-title') as HTMLDivElement,
   paperAuthors: document.getElementById('paper-authors') as HTMLDivElement,
+  btnRefreshPaper: document.getElementById('btn-refresh-paper') as HTMLButtonElement,
+  manualPaperDetails: document.getElementById('manual-paper-details') as HTMLDetailsElement,
+  inputManualTitle: document.getElementById('input-manual-title') as HTMLInputElement,
+  inputManualAbstract: document.getElementById('input-manual-abstract') as HTMLTextAreaElement,
+  btnApplyManualPaper: document.getElementById('btn-apply-manual-paper') as HTMLButtonElement,
   btnTldr: document.getElementById('btn-tldr') as HTMLButtonElement,
   btnCritique: document.getElementById('btn-critique') as HTMLButtonElement,
   overviewOutput: document.getElementById('overview-output') as HTMLDivElement,
@@ -199,28 +204,77 @@ function setupEventListeners() {
     }
   });
 
-  // 一键速读
-  elements.btnTldr.addEventListener('click', () => {
-    const prompt = `请对以下论文进行 4 维核心解析：\n\n标题: ${currentPaperData.title}\n摘要: ${currentPaperData.abstract}`;
+  // 重新识别当前标签页论文元数据
+  elements.btnRefreshPaper.addEventListener('click', async () => {
+    try {
+      const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (!activeTab?.id) return;
+      const resp = await chrome.tabs.sendMessage(activeTab.id, {
+        action: 'EXTRACT_PAPER_METADATA_REQUEST',
+      });
+      if (resp?.paper) {
+        applyPaperMetadata(resp.paper);
+        chrome.storage.session?.set({ latestPaperData: resp.paper }).catch(() => {});
+      } else {
+        elements.overviewOutput.innerHTML =
+          '<span style="color:#b45309;">⚠️ 当前页面未识别到学术论文元数据，可展开上方「手动粘贴论文标题/摘要」自行载入。</span>';
+      }
+    } catch {
+      elements.overviewOutput.innerHTML =
+        '<span style="color:#b45309;">⚠️ 当前页面暂不支持自动抓取（如 Chrome 内嵌 PDF），可展开上方「手动粘贴论文标题/摘要」载入。</span>';
+    }
+  });
+
+  // 手动载入论文标题/摘要
+  elements.btnApplyManualPaper.addEventListener('click', () => {
+    const title = elements.inputManualTitle.value.trim();
+    const abstract = elements.inputManualAbstract.value.trim();
+    if (!title && !abstract) {
+      elements.overviewOutput.innerHTML =
+        '<span style="color:#dc2626;">⚠️ 请至少填写论文标题或摘要内容。</span>';
+      return;
+    }
+    const payload = {
+      title: title || '手动输入论文',
+      abstract,
+      authors: [] as string[],
+      url: '',
+    };
+    applyPaperMetadata(payload);
+    chrome.storage.session?.set({ latestPaperData: payload }).catch(() => {});
+    elements.manualPaperDetails.open = false;
+    elements.overviewOutput.textContent = '已载入手动输入的论文内容，可点击上方按钮开始分析。';
+  });
+
+  function hasPaperContext(): boolean {
+    return Boolean(currentPaperData.title.trim() || currentPaperData.abstract.trim());
+  }
+
+  function runPaperAnalysis(systemPrompt: string, instructionPrefix: string) {
+    if (!hasPaperContext()) {
+      delete elements.overviewOutput.dataset.rawText;
+      elements.overviewOutput.innerHTML =
+        '<span style="color:#dc2626;">⚠️ 当前未检测到论文标题或摘要。请先打开 arXiv / bioRxiv / PubMed 论文页（或点击「重新识别」/「手动粘贴论文标题/摘要」）。</span>';
+      return;
+    }
+    const prompt = `${instructionPrefix}\n\n标题: ${currentPaperData.title}\n摘要: ${currentPaperData.abstract}`;
     runInference(
       [
-        { role: 'system', content: ACADEMIC_PROMPTS.summary },
+        { role: 'system', content: systemPrompt },
         { role: 'user', content: prompt },
       ],
       elements.overviewOutput
     );
+  }
+
+  // 一键速读
+  elements.btnTldr.addEventListener('click', () => {
+    runPaperAnalysis(ACADEMIC_PROMPTS.summary, '请对以下论文进行 4 维核心解析：');
   });
 
   // 审稿人盲评
   elements.btnCritique.addEventListener('click', () => {
-    const prompt = `请针对以下论文进行严苛审稿人盲评：\n\n标题: ${currentPaperData.title}\n摘要: ${currentPaperData.abstract}`;
-    runInference(
-      [
-        { role: 'system', content: ACADEMIC_PROMPTS.critique },
-        { role: 'user', content: prompt },
-      ],
-      elements.overviewOutput
-    );
+    runPaperAnalysis(ACADEMIC_PROMPTS.critique, '请针对以下论文进行严苛审稿人盲评：');
   });
 
   // 公式直觉解读

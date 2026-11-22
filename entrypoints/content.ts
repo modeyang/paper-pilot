@@ -1,4 +1,5 @@
 import { defineContentScript } from 'wxt/sandbox';
+import { extractPaperMetadata } from '../src/utils/paper-extractor';
 
 export default defineContentScript({
   matches: ['*://arxiv.org/*', '*://*.biorxiv.org/*', '*://pubmed.ncbi.nlm.nih.gov/*', '<all_urls>'],
@@ -95,22 +96,25 @@ export default defineContentScript({
       });
     }
 
-    // 自动探测并向侧边栏上报学术元数据 (针对 arXiv 详情页)
-    if (window.location.hostname === 'arxiv.org' && window.location.pathname.startsWith('/abs/')) {
-      const titleEl = document.querySelector('h1.title');
-      const abstractEl = document.querySelector('blockquote.abstract');
-      const authorsEls = document.querySelectorAll('.authors a');
-
-      if (titleEl) {
-        const title = titleEl.textContent?.replace(/^Title:\s*/, '').trim() || '';
-        const abstract = abstractEl?.textContent?.replace(/^Abstract:\s*/, '').trim() || '';
-        const authors = Array.from(authorsEls).map((a) => a.textContent?.trim() || '');
-
+    // 自动探测并向侧边栏上报学术元数据 (arXiv abs/html/pdf, bioRxiv, PubMed 等)
+    function reportPaperMetadata() {
+      const metadata = extractPaperMetadata(document, new URL(window.location.href));
+      if (metadata) {
         chrome.runtime.sendMessage({
           action: 'PAPER_METADATA_EXTRACTED',
-          payload: { title, abstract, authors, url: window.location.href },
+          payload: metadata,
         });
       }
+      return metadata;
     }
+
+    reportPaperMetadata();
+
+    chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+      if (message.action === 'EXTRACT_PAPER_METADATA_REQUEST') {
+        const paper = reportPaperMetadata();
+        sendResponse({ paper });
+      }
+    });
   },
 });
