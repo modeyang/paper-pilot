@@ -1,0 +1,22 @@
+{
+  "name": "paper-pilot",
+  "version": "1.0.0",
+  "description": "AI-powered Chrome Side Panel companion for academic papers (arXiv, PubMed)",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wxt",
+    "dev:firefox": "wxt -b firefox",
+    "build": "wxt build",
+    "build:firefox": "wxt build -b firefox",
+    "zip": "wxt zip",
+    "compile": "tsc --noEmit"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/chrome": "^0.0.280",
+    "@types/node": "^20.14.0",
+    "typescript": "^5.4.5",
+    "wxt": "^0.19.0"
+  }
+}

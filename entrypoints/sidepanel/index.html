@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PaperPilot - Academic Side Panel</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div id="app" class="sidepanel-container">
+    <!-- 顶部导航栏 -->
+    <header class="header">
+      <div class="brand">
+        <span class="logo-icon">🎓</span>
+        <span class="logo-text">PaperPilot</span>
+        <span class="badge" id="provider-badge">DeepSeek</span>
+      </div>
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="tab-overview">全文速读</button>
+        <button class="tab-btn" data-tab="tab-selection">划词释疑</button>
+        <button class="tab-btn" data-tab="tab-settings">设置</button>
+      </div>
+    </header>
+
+    <!-- Tab 1: 论文全文速读与审稿人视角 -->
+    <main id="tab-overview" class="tab-pane active">
+      <div class="card paper-info-card">
+        <div class="meta-label">当前论文</div>
+        <div id="paper-title" class="paper-title">未检测到学术论文（请打开 arXiv 页面或划选文字）</div>
+        <div id="paper-authors" class="paper-authors"></div>
+      </div>
+
+      <div class="action-grid">
+        <button id="btn-tldr" class="action-btn primary">
+          <span>⚡</span> 一键 4 维速读
+        </button>
+        <button id="btn-critique" class="action-btn danger">
+          <span>🧐</span> 顶会审稿人盲评 (Critique)
+        </button>
+      </div>
+
+      <div class="output-container">
+        <div class="output-header">
+          <span class="output-title">分析结果</span>
+          <button id="btn-copy-overview" class="small-btn">复制</button>
+        </div>
+        <div id="overview-output" class="markdown-body">
+          点击上方按钮，基于当前论文自动进行专业研读分析...
+        </div>
+      </div>
+    </main>
+
+    <!-- Tab 2: 划选文本与公式白话释疑 -->
+    <main id="tab-selection" class="tab-pane">
+      <div class="card selection-card">
+        <div class="meta-label">划选文本 / 公式内容</div>
+        <div id="selected-text-preview" class="selection-preview">
+          在学术论文中用鼠标划选任意文本或公式，内容将自动填充至此处...
+        </div>
+      </div>
+
+      <div class="action-grid">
+        <button id="btn-explain-formula" class="action-btn primary">
+          <span>📐</span> 公式几何与物理直觉解读
+        </button>
+        <button id="btn-explain-plain" class="action-btn">
+          <span>💡</span> 通俗大白话讲透
+        </button>
+      </div>
+
+      <div class="output-container">
+        <div class="output-header">
+          <span class="output-title">释疑输出</span>
+          <button id="btn-copy-selection" class="small-btn">复制</button>
+        </div>
+        <div id="selection-output" class="markdown-body">
+          等待生成直觉解读...
+        </div>
+      </div>
+    </main>
+
+    <!-- Tab 3: BYOK 设置与模型配置 -->
+    <main id="tab-settings" class="tab-pane">
+      <div class="settings-form">
+        <div class="form-group">
+          <label for="select-provider">AI 提供商 (Provider)</label>
+          <select id="select-provider" class="form-control">
+            <option value="deepseek">DeepSeek (推荐·数学推理最强)</option>
+            <option value="openai">OpenAI (GPT-4o / GPT-4o-mini)</option>
+            <option value="anthropic">Anthropic (Claude 3.5 Sonnet)</option>
+            <option value="ollama">本地 Ollama (完全保密与离线)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="input-api-key">API Key (保存在本地沙箱)</label>
+          <input type="password" id="input-api-key" class="form-control" placeholder="sk-..." />
+        </div>
+
+        <div class="form-group">
+          <label for="input-base-url">API Base URL</label>
+          <input type="text" id="input-base-url" class="form-control" />
+        </div>
+
+        <div class="form-group">
+          <label for="input-model">模型名称 (Model Name)</label>
+          <input type="text" id="input-model" class="form-control" />
+        </div>
+
+        <div class="form-actions">
+          <button id="btn-save-settings" class="btn-save">保存配置</button>
+          <button id="btn-test-connection" class="btn-test">测试连通性</button>
+        </div>
+        <div id="settings-status" class="status-msg"></div>
+
+        <div class="security-notice">
+          🔒 <strong>隐私保证</strong>：API Key 仅存储在浏览器的本地 <code>chrome.storage.local</code> 中。所有大模型请求均从你本地浏览器直接发出，不通过任何第三方中间服务器。
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script type="module" src="./main.ts"></script>
+</body>
+</html>

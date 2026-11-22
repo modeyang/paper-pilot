@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": [
+    "entrypoints/**/*",
+    "src/**/*",
+    ".wxt/types/**/*"
+  ]
+}
