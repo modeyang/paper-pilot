@@ -1,6 +1,11 @@
 import test, { describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { createAcceptanceContext, FIXTURE_URLS } from './helpers/acceptance-env.mjs';
+import fs from 'node:fs';
+import {
+  createAcceptanceContext,
+  captureAcceptanceScreenshot,
+  FIXTURE_URLS,
+} from './helpers/acceptance-env.mjs';
 
 /**
  * Add issue numbers here once implemented so `npm run verify` enforces them as
@@ -85,7 +90,7 @@ describe('PaperPilot Issue Acceptance Matrix (#2 - #10)', () => {
         katexCount: out.querySelectorAll('.katex').length,
         hasDisplayMath: Boolean(out.querySelector('.katex-display')),
         hasScriptTag: Boolean(out.querySelector('script')),
-        hasOnErrorAttr: Boolean(out.querySelector('img[onerror]')),
+        hasOnClickAttr: Boolean(out.querySelector('[onclick]')),
         xssExecuted: Boolean(window.__xss),
         rawText: out.dataset.rawText || '',
       };
@@ -97,9 +102,12 @@ describe('PaperPilot Issue Acceptance Matrix (#2 - #10)', () => {
     assert.ok(rendered.katexCount >= 3, 'Inline (with subscripts) and block LaTeX should render via KaTeX');
     assert.equal(rendered.hasDisplayMath, true, 'Block formula should render with .katex-display');
     assert.equal(rendered.hasScriptTag, false, 'Script tags must be sanitized');
-    assert.equal(rendered.hasOnErrorAttr, false, 'Inline event handlers must be sanitized');
+    assert.equal(rendered.hasOnClickAttr, false, 'Inline event handlers must be sanitized');
     assert.equal(rendered.xssExecuted, false, 'Injected script must never execute');
     assert.match(rendered.rawText, /\$E = mc\^2\$/, 'Raw Markdown/LaTeX should be preserved for copy');
+
+    const shotPath = await captureAcceptanceScreenshot(panel, 'issue-2-markdown-katex.png');
+    assert.ok(fs.statSync(shotPath).size > 1000, 'Acceptance screenshot should be non-empty');
 
     await panel.close();
     await arxivPage.close();
@@ -140,6 +148,7 @@ describe('PaperPilot Issue Acceptance Matrix (#2 - #10)', () => {
       );
       await page.close();
     }
+    await captureAcceptanceScreenshot(panel, 'issue-3-academic-metadata.png');
 
     await panel.close();
   });
@@ -167,6 +176,7 @@ describe('PaperPilot Issue Acceptance Matrix (#2 - #10)', () => {
       undefined,
       { timeout: 5000 }
     );
+    await captureAcceptanceScreenshot(panel, 'issue-4-tab-sync.png');
 
     await panel.close();
     await page1.close();
@@ -205,6 +215,7 @@ describe('PaperPilot Issue Acceptance Matrix (#2 - #10)', () => {
       lastMessages.some((m) => m.role === 'assistant'),
       'Multi-turn request must include prior assistant turn'
     );
+    await captureAcceptanceScreenshot(panel, 'issue-5-editable-followup.png');
 
     await panel.close();
   });
@@ -238,6 +249,10 @@ describe('PaperPilot Issue Acceptance Matrix (#2 - #10)', () => {
     });
     assert.ok(box.top >= 0 && box.left >= 0, 'Capsule must not clip off top/left edge');
     assert.ok(box.right <= box.vw && box.bottom <= box.vh, 'Capsule must stay inside viewport');
+    await captureAcceptanceScreenshot(arxivPage, 'issue-6-capsule-viewport.png', {
+      width: 900,
+      height: 600,
+    });
 
     // Short academic term like "LoRA" (4 chars) should trigger capsule
     await arxivPage.evaluate(() => {
@@ -302,6 +317,7 @@ describe('PaperPilot Issue Acceptance Matrix (#2 - #10)', () => {
     await panel.waitForFunction(() =>
       document.querySelector('#overview-output')?.textContent?.includes('梯度下降收敛')
     );
+    await captureAcceptanceScreenshot(panel, 'issue-7-stop-and-reasoning.png');
 
     await panel.close();
     await arxivPage.close();
@@ -320,6 +336,7 @@ describe('PaperPilot Issue Acceptance Matrix (#2 - #10)', () => {
     await quickModel.waitFor({ state: 'visible', timeout: 3000 });
     await quickModel.selectOption('auto/gemini-3.8-flash');
     assert.equal(await panel.inputValue('#input-model'), 'auto/gemini-3.8-flash');
+    await captureAcceptanceScreenshot(panel, 'issue-8-settings-quick-model.png');
 
     await panel.close();
   });
@@ -333,6 +350,7 @@ describe('PaperPilot Issue Acceptance Matrix (#2 - #10)', () => {
     const match = bgRgb.match(/\d+/g)?.map(Number) || [255, 255, 255];
     const luminance = (0.299 * match[0] + 0.587 * match[1] + 0.114 * match[2]) / 255;
     assert.ok(luminance < 0.35, `Expected dark background under dark mode, got ${bgRgb}`);
+    await captureAcceptanceScreenshot(panel, 'issue-9-dark-mode.png');
 
     await panel.close();
   });
