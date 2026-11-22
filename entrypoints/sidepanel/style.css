@@ -182,16 +182,56 @@ body {
 }
 
 .selection-preview {
+  width: 100%;
   font-family: var(--font-mono);
   font-size: 12px;
+  color: var(--text-main);
   background: #f8fafc;
   padding: 8px;
   border-radius: 6px;
   border: 1px dashed var(--border);
-  max-height: 100px;
-  overflow-y: auto;
-  white-space: pre-wrap;
-  word-break: break-all;
+  min-height: 76px;
+  max-height: 140px;
+  resize: vertical;
+  outline: none;
+  line-height: 1.45;
+}
+
+.selection-preview:focus {
+  border-color: var(--primary);
+  border-style: solid;
+  background: var(--bg-card);
+}
+
+.output-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.followup-bar {
+  display: flex;
+  gap: 6px;
+  padding: 8px 10px;
+  border-top: 1px solid var(--border);
+  background-color: #f8fafc;
+}
+
+.followup-input {
+  flex: 1;
+  padding: 6px 8px;
+}
+
+.small-btn.followup-btn {
+  padding: 0 12px;
+  background-color: var(--primary);
+  color: #ffffff;
+  border-color: var(--primary);
+  font-weight: 500;
+}
+
+.small-btn.followup-btn:hover {
+  background-color: var(--primary-hover);
 }
 
 /* Action Buttons */
