@@ -17,6 +17,16 @@ let activeAbortController: AbortController | null = null;
 let currentPaperData = { ...EMPTY_PAPER_DATA };
 let currentSelection = '';
 
+interface TabChatSession {
+  history: ChatMessage[];
+  renderedTranscript: string;
+}
+
+const chatSessions: Record<'overview' | 'selection', TabChatSession> = {
+  overview: { history: [], renderedTranscript: '' },
+  selection: { history: [], renderedTranscript: '' },
+};
+
 // DOM 元素引用
 const elements = {
   providerBadge: document.getElementById('provider-badge') as HTMLSpanElement,
@@ -35,13 +45,19 @@ const elements = {
   btnCritique: document.getElementById('btn-critique') as HTMLButtonElement,
   overviewOutput: document.getElementById('overview-output') as HTMLDivElement,
   btnCopyOverview: document.getElementById('btn-copy-overview') as HTMLButtonElement,
+  btnResetOverview: document.getElementById('btn-reset-overview') as HTMLButtonElement,
+  inputOverviewFollowup: document.getElementById('input-overview-followup') as HTMLInputElement,
+  btnOverviewFollowup: document.getElementById('btn-overview-followup') as HTMLButtonElement,
 
   // Selection Tab
-  selectionPreview: document.getElementById('selected-text-preview') as HTMLDivElement,
+  selectionPreview: document.getElementById('selected-text-preview') as HTMLTextAreaElement,
   btnExplainFormula: document.getElementById('btn-explain-formula') as HTMLButtonElement,
   btnExplainPlain: document.getElementById('btn-explain-plain') as HTMLButtonElement,
   selectionOutput: document.getElementById('selection-output') as HTMLDivElement,
   btnCopySelection: document.getElementById('btn-copy-selection') as HTMLButtonElement,
+  btnResetSelection: document.getElementById('btn-reset-selection') as HTMLButtonElement,
+  inputSelectionFollowup: document.getElementById('input-selection-followup') as HTMLInputElement,
+  btnSelectionFollowup: document.getElementById('btn-selection-followup') as HTMLButtonElement,
 
   // Settings Tab
   selectProvider: document.getElementById('select-provider') as HTMLSelectElement,
@@ -146,6 +162,7 @@ function applyPaperMetadata(payload: typeof currentPaperData | null) {
 
 function applyCapturedSelection(selectedText: string, autoExplain: boolean) {
   currentSelection = selectedText;
+  elements.selectionPreview.value = currentSelection;
   elements.selectionPreview.textContent = currentSelection;
 
   // 自动切换到划词 Tab
@@ -285,6 +302,32 @@ function setupEventListeners() {
     return Boolean(currentPaperData.title.trim() || currentPaperData.abstract.trim());
   }
 
+  // 划词文本区支持直接编辑/粘贴
+  elements.selectionPreview.addEventListener('input', () => {
+    currentSelection = elements.selectionPreview.value.trim();
+  });
+
+  function getSelectionText(): string {
+    const val = elements.selectionPreview.value.trim();
+    if (val) {
+      currentSelection = val;
+      return val;
+    }
+    return currentSelection.trim();
+  }
+
+  function startTabConversation(
+    tab: 'overview' | 'selection',
+    messages: ChatMessage[],
+    targetEl: HTMLElement
+  ) {
+    chatSessions[tab] = {
+      history: [...messages],
+      renderedTranscript: '',
+    };
+    runInference(tab, targetEl, '');
+  }
+
   function runPaperAnalysis(systemPrompt: string, instructionPrefix: string) {
     if (!hasPaperContext()) {
       delete elements.overviewOutput.dataset.rawText;
@@ -293,7 +336,8 @@ function setupEventListeners() {
       return;
     }
     const prompt = `${instructionPrefix}\n\n标题: ${currentPaperData.title}\n摘要: ${currentPaperData.abstract}`;
-    runInference(
+    startTabConversation(
+      'overview',
       [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: prompt },
@@ -314,14 +358,16 @@ function setupEventListeners() {
 
   // 公式直觉解读
   elements.btnExplainFormula.addEventListener('click', () => {
-    if (!currentSelection) {
-      elements.selectionOutput.textContent = '请先在论文页面中划选一段公式或数学推导。';
+    const text = getSelectionText();
+    if (!text) {
+      elements.selectionOutput.textContent = '请先在论文页面中划选一段公式或数学推导，或直接在上方文本框输入。';
       return;
     }
-    runInference(
+    startTabConversation(
+      'selection',
       [
         { role: 'system', content: ACADEMIC_PROMPTS.intuition },
-        { role: 'user', content: `请用直觉与生活化类比解读以下数学公式/算法：\n\n${currentSelection}` },
+        { role: 'user', content: `请用直觉与生活化类比解读以下数学公式/算法：\n\n${text}` },
       ],
       elements.selectionOutput
     );
@@ -329,18 +375,121 @@ function setupEventListeners() {
 
   // 通俗解读
   elements.btnExplainPlain.addEventListener('click', () => {
-    if (!currentSelection) {
-      elements.selectionOutput.textContent = '请先在论文页面中划选一段文字。';
+    const text = getSelectionText();
+    if (!text) {
+      elements.selectionOutput.textContent = '请先在论文页面中划选一段文字，或直接在上方文本框输入。';
       return;
     }
-    runInference(
+    startTabConversation(
+      'selection',
       [
         { role: 'system', content: '你是一位精通化繁为简的学术导师，请用大白话彻底讲透输入的这段学术文本。' },
-        { role: 'user', content: currentSelection },
+        { role: 'user', content: text },
       ],
       elements.selectionOutput
     );
   });
+
+  // 多轮追问绑定
+  function bindFollowup(
+    tab: 'overview' | 'selection',
+    inputEl: HTMLInputElement,
+    sendBtn: HTMLButtonElement,
+    outputEl: HTMLElement
+  ) {
+    const submitFollowup = () => {
+      const question = inputEl.value.trim();
+      if (!question) return;
+
+      const session = chatSessions[tab];
+      if (session.history.length === 0) {
+        if (tab === 'overview') {
+          if (!hasPaperContext()) {
+            outputEl.innerHTML =
+              '<span style="color:#dc2626;">⚠️ 请先载入论文或输入摘要后再进行追问。</span>';
+            return;
+          }
+          session.history.push(
+            { role: 'system', content: ACADEMIC_PROMPTS.summary },
+            {
+              role: 'user',
+              content: `当前论文参考：\n标题: ${currentPaperData.title}\n摘要: ${currentPaperData.abstract}`,
+            }
+          );
+        } else {
+          const selText = getSelectionText();
+          if (!selText) {
+            outputEl.innerHTML =
+              '<span style="color:#dc2626;">⚠️ 请先划选或在上方文本框输入内容后再进行追问。</span>';
+            return;
+          }
+          session.history.push(
+            { role: 'system', content: ACADEMIC_PROMPTS.intuition },
+            { role: 'user', content: `参考内容：\n${selText}` }
+          );
+        }
+      }
+
+      session.history.push({ role: 'user', content: question });
+      inputEl.value = '';
+      const prefix = session.renderedTranscript
+        ? `${session.renderedTranscript}\n\n---\n\n**追问：** ${question}\n\n`
+        : `**追问：** ${question}\n\n`;
+      runInference(tab, outputEl, prefix);
+    };
+
+    sendBtn.addEventListener('click', submitFollowup);
+    inputEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        submitFollowup();
+      }
+    });
+  }
+
+  bindFollowup(
+    'overview',
+    elements.inputOverviewFollowup,
+    elements.btnOverviewFollowup,
+    elements.overviewOutput
+  );
+  bindFollowup(
+    'selection',
+    elements.inputSelectionFollowup,
+    elements.btnSelectionFollowup,
+    elements.selectionOutput
+  );
+
+  // 重置会话绑定
+  function bindResetButton(
+    tab: 'overview' | 'selection',
+    btn: HTMLButtonElement,
+    outputEl: HTMLElement,
+    placeholder: string
+  ) {
+    btn.addEventListener('click', () => {
+      if (activeAbortController) {
+        activeAbortController.abort();
+        activeAbortController = null;
+      }
+      chatSessions[tab] = { history: [], renderedTranscript: '' };
+      delete outputEl.dataset.rawText;
+      outputEl.textContent = placeholder;
+    });
+  }
+
+  bindResetButton(
+    'overview',
+    elements.btnResetOverview,
+    elements.overviewOutput,
+    '点击上方按钮，基于当前论文自动进行专业研读分析...'
+  );
+  bindResetButton(
+    'selection',
+    elements.btnResetSelection,
+    elements.selectionOutput,
+    '等待生成直觉解读...'
+  );
 
   // 复制功能（优先导出原始 Markdown/LaTeX 文本）
   const bindCopyButton = (btn: HTMLButtonElement, outputEl: HTMLElement) => {
@@ -356,7 +505,7 @@ function setupEventListeners() {
 }
 
 // 统一流式推理调度
-function runInference(messages: ChatMessage[], targetEl: HTMLElement) {
+function runInference(tab: 'overview' | 'selection', targetEl: HTMLElement, transcriptPrefix: string) {
   if (!currentConfig.apiKey && currentConfig.provider !== 'ollama' && currentConfig.provider !== 'magpie') {
     delete targetEl.dataset.rawText;
     targetEl.innerHTML = `<span style="color:#dc2626;">⚠️ 请先切换到【设置】标签页配置你的 API Key。</span>`;
@@ -368,24 +517,32 @@ function runInference(messages: ChatMessage[], targetEl: HTMLElement) {
   }
   activeAbortController = new AbortController();
 
-  delete targetEl.dataset.rawText;
-  targetEl.textContent = '思考中...';
+  const session = chatSessions[tab];
+  if (transcriptPrefix) {
+    renderMarkdownInto(targetEl, `${transcriptPrefix}思考中...`);
+  } else {
+    delete targetEl.dataset.rawText;
+    targetEl.textContent = '思考中...';
+  }
   let accumulated = '';
 
   streamAIChat(
-    messages,
+    session.history,
     currentConfig,
     {
       onChunk: (delta) => {
         accumulated += delta;
-        renderMarkdownInto(targetEl, accumulated);
+        renderMarkdownInto(targetEl, `${transcriptPrefix}${accumulated}`);
       },
       onError: (err) => {
         delete targetEl.dataset.rawText;
         targetEl.innerHTML = `<span style="color:#dc2626;">调用出错: ${err.message}</span>`;
       },
       onFinish: (full) => {
-        renderMarkdownInto(targetEl, full);
+        const finalTranscript = `${transcriptPrefix}${full}`;
+        session.renderedTranscript = finalTranscript;
+        session.history.push({ role: 'assistant', content: full });
+        renderMarkdownInto(targetEl, finalTranscript);
       },
     },
     activeAbortController.signal

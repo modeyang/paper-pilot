@@ -53,10 +53,17 @@
       <div class="output-container">
         <div class="output-header">
           <span class="output-title">分析结果</span>
-          <button id="btn-copy-overview" class="small-btn">复制</button>
+          <div class="output-actions">
+            <button id="btn-reset-overview" class="small-btn" data-testid="overview-reset">重置</button>
+            <button id="btn-copy-overview" class="small-btn">复制</button>
+          </div>
         </div>
         <div id="overview-output" class="markdown-body">
           点击上方按钮，基于当前论文自动进行专业研读分析...
+        </div>
+        <div class="followup-bar">
+          <input type="text" id="input-overview-followup" class="form-control followup-input" data-testid="overview-followup-input" placeholder="针对当前论文继续追问..." />
+          <button id="btn-overview-followup" class="small-btn followup-btn" data-testid="overview-followup-send">追问</button>
         </div>
       </div>
     </main>
@@ -64,10 +71,8 @@
     <!-- Tab 2: 划选文本与公式白话释疑 -->
     <main id="tab-selection" class="tab-pane">
       <div class="card selection-card">
-        <div class="meta-label">划选文本 / 公式内容</div>
-        <div id="selected-text-preview" class="selection-preview">
-          在学术论文中用鼠标划选任意文本或公式，内容将自动填充至此处...
-        </div>
+        <div class="meta-label">划选文本 / 公式内容（可直接输入或编辑）</div>
+        <textarea id="selected-text-preview" class="selection-preview" rows="4" placeholder="在学术论文中用鼠标划选任意文本或公式，或直接在此粘贴/输入待解读内容..."></textarea>
       </div>
 
       <div class="action-grid">
@@ -82,10 +87,17 @@
       <div class="output-container">
         <div class="output-header">
           <span class="output-title">释疑输出</span>
-          <button id="btn-copy-selection" class="small-btn">复制</button>
+          <div class="output-actions">
+            <button id="btn-reset-selection" class="small-btn" data-testid="selection-reset">重置</button>
+            <button id="btn-copy-selection" class="small-btn">复制</button>
+          </div>
         </div>
         <div id="selection-output" class="markdown-body">
           等待生成直觉解读...
+        </div>
+        <div class="followup-bar">
+          <input type="text" id="input-selection-followup" class="form-control followup-input" data-testid="selection-followup-input" placeholder="围绕该公式或段落继续追问..." />
+          <button id="btn-selection-followup" class="small-btn followup-btn" data-testid="selection-followup-send">追问</button>
         </div>
       </div>
     </main>

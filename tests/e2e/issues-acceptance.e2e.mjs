@@ -12,7 +12,7 @@ import {
  * permanent regression checks. Before implementation, run a specific check with:
  *   VERIFY_ISSUES=2 npm run verify:acceptance
  */
-const IMPLEMENTED_ISSUES = new Set([2, 3, 4]);
+const IMPLEMENTED_ISSUES = new Set([2, 3, 4, 5]);
 
 function parseRequestedIssues() {
   const raw = process.env.VERIFY_ISSUES?.trim();
@@ -228,6 +228,13 @@ describe('PaperPilot Issue Acceptance Matrix (#2 - #10)', () => {
       'Multi-turn request must include prior assistant turn'
     );
     await captureAcceptanceScreenshot(panel, 'issue-5-editable-followup.png');
+
+    // Verify reset clears history & output
+    await panel.click('[data-testid="selection-reset"]');
+    assert.match(
+      (await panel.textContent('#selection-output')) || '',
+      /等待生成直觉解读/
+    );
 
     await panel.close();
   });
