@@ -1,5 +1,7 @@
+import 'katex/dist/katex.min.css';
 import { getStoredConfig, saveStoredConfig, PROVIDER_DEFAULTS, UserConfig, ProviderType } from '../../src/services/storage';
 import { streamAIChat, ACADEMIC_PROMPTS, ChatMessage } from '../../src/services/ai';
+import { renderMarkdownInto } from '../../src/utils/markdown';
 
 // 运行时状态
 let currentConfig: UserConfig;
@@ -251,23 +253,23 @@ function setupEventListeners() {
     );
   });
 
-  // 复制功能
-  elements.btnCopyOverview.addEventListener('click', () => {
-    navigator.clipboard.writeText(elements.overviewOutput.innerText);
-    elements.btnCopyOverview.textContent = '已复制!';
-    setTimeout(() => (elements.btnCopyOverview.textContent = '复制'), 1500);
-  });
-
-  elements.btnCopySelection.addEventListener('click', () => {
-    navigator.clipboard.writeText(elements.selectionOutput.innerText);
-    elements.btnCopySelection.textContent = '已复制!';
-    setTimeout(() => (elements.btnCopySelection.textContent = '复制'), 1500);
-  });
+  // 复制功能（优先导出原始 Markdown/LaTeX 文本）
+  const bindCopyButton = (btn: HTMLButtonElement, outputEl: HTMLElement) => {
+    btn.addEventListener('click', async () => {
+      const textToCopy = outputEl.dataset.rawText || outputEl.innerText;
+      await navigator.clipboard.writeText(textToCopy);
+      btn.textContent = '已复制!';
+      setTimeout(() => (btn.textContent = '复制'), 1500);
+    });
+  };
+  bindCopyButton(elements.btnCopyOverview, elements.overviewOutput);
+  bindCopyButton(elements.btnCopySelection, elements.selectionOutput);
 }
 
 // 统一流式推理调度
 function runInference(messages: ChatMessage[], targetEl: HTMLElement) {
   if (!currentConfig.apiKey && currentConfig.provider !== 'ollama' && currentConfig.provider !== 'magpie') {
+    delete targetEl.dataset.rawText;
     targetEl.innerHTML = `<span style="color:#dc2626;">⚠️ 请先切换到【设置】标签页配置你的 API Key。</span>`;
     return;
   }
@@ -277,6 +279,7 @@ function runInference(messages: ChatMessage[], targetEl: HTMLElement) {
   }
   activeAbortController = new AbortController();
 
+  delete targetEl.dataset.rawText;
   targetEl.textContent = '思考中...';
   let accumulated = '';
 
@@ -286,13 +289,14 @@ function runInference(messages: ChatMessage[], targetEl: HTMLElement) {
     {
       onChunk: (delta) => {
         accumulated += delta;
-        targetEl.textContent = accumulated;
+        renderMarkdownInto(targetEl, accumulated);
       },
       onError: (err) => {
+        delete targetEl.dataset.rawText;
         targetEl.innerHTML = `<span style="color:#dc2626;">调用出错: ${err.message}</span>`;
       },
       onFinish: (full) => {
-        targetEl.textContent = full;
+        renderMarkdownInto(targetEl, full);
       },
     },
     activeAbortController.signal

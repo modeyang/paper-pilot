@@ -11,13 +11,22 @@
     "build:firefox": "wxt build -b firefox",
     "zip": "wxt zip",
     "compile": "tsc --noEmit",
-    "test:e2e": "node --test tests/e2e/paper-pilot.e2e.mjs"
+    "test:e2e": "node --test tests/e2e/paper-pilot.e2e.mjs",
+    "verify:bundle": "node --test tests/e2e/verify-bundle.mjs",
+    "verify:acceptance": "node --test tests/e2e/issues-acceptance.e2e.mjs",
+    "verify": "npm run compile && npm run build && npm run verify:bundle && npm run test:e2e && npm run verify:acceptance"
   },
   "devDependencies": {
     "@types/chrome": "^0.0.280",
+    "@types/katex": "^0.16.8",
     "@types/node": "^20.14.0",
     "playwright-core": "^1.65.1",
     "typescript": "^5.4.5",
     "wxt": "^0.19.0"
+  },
+  "dependencies": {
+    "dompurify": "^3.4.18",
+    "katex": "^0.19.1",
+    "marked": "^18.2.1"
   }
 }

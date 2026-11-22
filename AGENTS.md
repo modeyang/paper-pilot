@@ -11,7 +11,7 @@ This file provides guidance to AI coding agents working in the `paper-pilot` rep
 - **Framework**: [WXT](https://wxt.dev) (`^0.19.0`)
 - **Language**: TypeScript (`^5.4.5`, `"strict": true`, ESM `"type": "module"`)
 - **Types & Testing**: `@types/chrome`, `@types/node`, `playwright-core` (for Ego/Chromium E2E tests in `tests/e2e/paper-pilot.e2e.mjs`)
-- **UI**: Vanilla TypeScript + HTML/CSS (`entrypoints/sidepanel/`) — no frontend framework, TailwindCSS, or KaTeX is currently installed in `package.json` (those appear in `docs/` as planned/reference items).
+- **UI & Rendering**: Vanilla TypeScript + HTML/CSS (`entrypoints/sidepanel/`) with `marked` + `dompurify` + `katex` (`src/utils/markdown.ts`) bundled locally (no frontend framework or TailwindCSS).
 - **Path Resolution**: `tsconfig.json` defines `@/* -> ./src/*`, while WXT defaults `srcDir` to the repo root (`.` -> `@/*` maps to `./*` during Vite bundling). Entrypoints under `entrypoints/` import shared modules from `src/` via relative paths (e.g., `../../src/services/storage`).
 
 ## Repository Structure
@@ -42,7 +42,11 @@ paper-pilot/
         └── ai.ts                       # ACADEMIC_PROMPTS, streamAIChat(), parseSSE()
 └── tests/
     └── e2e/
-        └── paper-pilot.e2e.mjs         # Playwright-core E2E suite running against Ego browser
+        ├── helpers/
+        │   └── acceptance-env.mjs      # Ego/Chromium E2E context, academic & LLM SSE fixtures
+        ├── verify-bundle.mjs           # MV3 manifest, bundle size (<3MB), and CSP compliance gate
+        ├── paper-pilot.e2e.mjs         # Baseline E2E regression suite
+        └── issues-acceptance.e2e.mjs   # Per-issue acceptance matrix (#2–#10, gated by VERIFY_ISSUES)
 ```
 
 ## Common Commands
@@ -64,8 +68,10 @@ npm run build
 npm run build:firefox
 npm run zip
 
-# End-to-end tests in Ego browser (requires prior `npm run build`)
+# End-to-end tests & full verification pipeline (see docs/ACCEPTANCE-CRITERIA.md)
+npm run verify
 npm run test:e2e
+VERIFY_ISSUES=2 npm run verify:acceptance
 ```
 
 To test in Chrome manually: open `chrome://extensions`, enable **Developer mode**, click **Load unpacked**, and select `.output/chrome-mv3`.
@@ -93,8 +99,7 @@ To test in Chrome manually: open `chrome://extensions`, enable **Developer mode*
 
 Agents picking up tasks in this repo should be aware of the following remaining items:
 1. **Content Script Match Scope**: `entrypoints/content.ts` includes `'<all_urls>'` in `matches`, whereas `docs/01-PRD-REQUIREMENTS.md` recommends avoiding `<all_urls>` for Chrome Web Store review compliance.
-2. **Output Rendering**: `entrypoints/sidepanel/main.ts` currently assigns streamed output to `targetEl.textContent`; Markdown and LaTeX/KaTeX rendering (Roadmap `#8`) are not yet implemented.
-3. **Extension Icons**: `docs/04-STORE-PUBLISHING-GUIDE.md` expects `16`/`48`/`128` px PNG icons in the manifest; currently only `assets/icon.svg` exists and `wxt.config.ts` does not configure `icons`.
+2. **Extension Icons**: `docs/04-STORE-PUBLISHING-GUIDE.md` expects `16`/`48`/`128` px PNG icons in the manifest; currently only `assets/icon.svg` exists and `wxt.config.ts` does not configure `icons`.
 
 ## Agent skills
 

@@ -26,10 +26,13 @@ jobs:
         run: npm ci || npm install
 
       - name: Type check
-        run: npm run compile || true
+        run: npm run compile
 
       - name: Build Chrome Extension (MV3)
         run: npm run build
+
+      - name: Verify MV3 bundle compliance
+        run: npm run verify:bundle
 
       - name: Create Web Store Zip Bundle
         run: npm run zip
