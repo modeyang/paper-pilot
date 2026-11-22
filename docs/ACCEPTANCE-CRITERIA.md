@@ -17,6 +17,8 @@
   - `https://example.com/*`（非学术站点对照组）
 - **可控 SSE 大模型模拟路由**：
   - 覆盖 DeepSeek、OpenAI、Anthropic、Ollama 与本地 Magpie 网关（含 `/v1/models`、`reasoning_content`、`markdown_latex` + `<script>` XSS 载荷、`reasoning_slow` 慢响应模式）。
+- **可视化截图验收留档**：
+  - [tests/e2e/issues-acceptance.e2e.mjs](../tests/e2e/issues-acceptance.e2e.mjs) 通过 `captureAcceptanceScreenshot()` 在每次执行时自动保存关键 UI 截图至 `tests/e2e/artifacts/issue-<N>-*.png`（该目录已加入 `.gitignore`，避免二进制截图污染 Git 仓库），供人工视觉核验与验收汇报引用。
 
 ---
 

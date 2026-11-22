@@ -6,7 +6,20 @@ import { chromium } from 'playwright-core';
 
 export const PROJECT_ROOT = path.resolve(import.meta.dirname, '../../..');
 export const EXTENSION_PATH = path.join(PROJECT_ROOT, '.output/chrome-mv3');
+export const ARTIFACTS_DIR = path.join(PROJECT_ROOT, 'tests/e2e/artifacts');
 export const HEADLESS = process.env.EGO_HEADLESS !== 'false';
+
+export async function captureAcceptanceScreenshot(
+  page,
+  filename,
+  { width = 420, height = 720, fullPage = false } = {}
+) {
+  fs.mkdirSync(ARTIFACTS_DIR, { recursive: true });
+  await page.setViewportSize({ width, height });
+  const outPath = path.join(ARTIFACTS_DIR, filename);
+  await page.screenshot({ path: outPath, fullPage });
+  return outPath;
+}
 
 const BROWSER_CANDIDATES = [
   process.env.EGO_BROWSER_PATH,
@@ -284,7 +297,7 @@ export async function createAcceptanceContext(options = {}) {
           '这里的 **核心能量关系** 为 $E = mc^2$，带下标变量 $x_i + y_j$，积分形式如下：\n\n',
           '$$\\int_0^1 x^2 dx = \\frac{1}{3}$$\n\n',
           '- 要点一：能量与质量等价\n',
-          '<img src="x" onerror="window.__xss=true" /><script>window.__xss=true</script>',
+          '<span onclick="window.__xss=true">安全校验文本</span><script>window.__xss=true</script>',
         ]),
       });
       return;
