@@ -12,7 +12,7 @@ import {
  * permanent regression checks. Before implementation, run a specific check with:
  *   VERIFY_ISSUES=2 npm run verify:acceptance
  */
-const IMPLEMENTED_ISSUES = new Set([2]);
+const IMPLEMENTED_ISSUES = new Set([2, 3]);
 
 function parseRequestedIssues() {
   const raw = process.env.VERIFY_ISSUES?.trim();
@@ -128,8 +128,18 @@ describe('PaperPilot Issue Acceptance Matrix (#2 - #10)', () => {
     const tldrDisabled = await panel.isDisabled('#btn-tldr');
     if (!tldrDisabled) {
       await panel.click('#btn-tldr');
+      await panel.click('#btn-critique');
     }
     assert.equal(env.state.recordedRequests.length, 0, 'Empty paper must not trigger AI call');
+    const guardMsg = await panel.textContent('#overview-output');
+    assert.match(guardMsg || '', /未检测到论文标题或摘要/);
+
+    // Manual abstract paste fallback should populate paper card
+    await panel.click('#manual-paper-details summary');
+    await panel.fill('#input-manual-title', 'Manual PDF Paper Title');
+    await panel.fill('#input-manual-abstract', 'Manual abstract content.');
+    await panel.click('#btn-apply-manual-paper');
+    assert.equal(await panel.textContent('#paper-title'), 'Manual PDF Paper Title');
 
     // Verify extraction across arXiv HTML, bioRxiv, and PubMed
     const sites = [
@@ -148,7 +158,9 @@ describe('PaperPilot Issue Acceptance Matrix (#2 - #10)', () => {
       );
       await page.close();
     }
-    await captureAcceptanceScreenshot(panel, 'issue-3-academic-metadata.png');
+    assert.ok(await panel.isVisible('#btn-refresh-paper'), 'Refresh paper button must be visible');
+    const shotPath = await captureAcceptanceScreenshot(panel, 'issue-3-academic-metadata.png');
+    assert.ok(fs.statSync(shotPath).size > 1000, 'Issue #3 screenshot should be non-empty');
 
     await panel.close();
   });

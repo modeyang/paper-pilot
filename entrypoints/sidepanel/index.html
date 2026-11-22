@@ -25,9 +25,20 @@
     <!-- Tab 1: 论文全文速读与审稿人视角 -->
     <main id="tab-overview" class="tab-pane active">
       <div class="card paper-info-card">
-        <div class="meta-label">当前论文</div>
-        <div id="paper-title" class="paper-title">未检测到学术论文（请打开 arXiv 页面或划选文字）</div>
+        <div class="meta-header">
+          <div class="meta-label">当前论文</div>
+          <button id="btn-refresh-paper" class="small-btn" title="重新识别当前标签页论文元数据">重新识别</button>
+        </div>
+        <div id="paper-title" class="paper-title">未检测到学术论文（请打开 arXiv / bioRxiv / PubMed 页面或手动输入）</div>
         <div id="paper-authors" class="paper-authors"></div>
+        <details id="manual-paper-details" class="manual-paper-details">
+          <summary>手动粘贴论文标题/摘要（PDF 兜底）</summary>
+          <div class="manual-paper-form">
+            <input type="text" id="input-manual-title" class="form-control" placeholder="论文标题（选填）" />
+            <textarea id="input-manual-abstract" class="form-control" rows="3" placeholder="粘贴论文摘要或核心段落..."></textarea>
+            <button id="btn-apply-manual-paper" class="small-btn manual-apply-btn">载入此内容</button>
+          </div>
+        </details>
       </div>
 
       <div class="action-grid">

@@ -123,6 +123,17 @@ body {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
 }
 
+.meta-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.meta-header .meta-label {
+  margin-bottom: 0;
+}
+
 .meta-label {
   font-size: 11px;
   font-weight: 600;
@@ -130,6 +141,31 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin-bottom: 4px;
+}
+
+.manual-paper-details {
+  margin-top: 8px;
+  border-top: 1px dashed var(--border);
+  padding-top: 6px;
+}
+
+.manual-paper-details summary {
+  font-size: 11px;
+  color: var(--primary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.manual-paper-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.manual-apply-btn {
+  align-self: flex-end;
+  padding: 4px 10px;
 }
 
 .paper-title {
