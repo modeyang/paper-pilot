@@ -1,15 +1,105 @@
 :root {
+  color-scheme: light dark;
   --primary: #2563eb;
   --primary-hover: #1d4ed8;
+  --accent-text: #2563eb;
   --danger: #dc2626;
   --danger-hover: #b91c1c;
   --bg-main: #f8fafc;
   --bg-card: #ffffff;
+  --bg-subtle: #f1f5f9;
+  --bg-elevated-subtle: #f8fafc;
+  --bg-badge: #eff6ff;
+  --border-badge: #bfdbfe;
+  --bg-danger-subtle: #fff1f2;
+  --bg-danger-subtle-hover: #ffe4e6;
+  --border-danger-subtle: #fecdd3;
+  --bg-code-inline: #f1f5f9;
+  --bg-code-block: #0f172a;
+  --text-code-block: #f8fafc;
   --border: #e2e8f0;
   --text-main: #0f172a;
   --text-muted: #64748b;
+  --status-success-bg: #dcfce7;
+  --status-success-text: #166534;
+  --status-error-bg: #fee2e2;
+  --status-error-text: #991b1b;
+  --status-warning-bg: #fef3c7;
+  --status-warning-text: #92400e;
+  --status-info-bg: #f1f5f9;
+  --status-info-text: #334155;
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --primary: #3b82f6;
+  --primary-hover: #2563eb;
+  --accent-text: #60a5fa;
+  --danger: #f87171;
+  --danger-hover: #ef4444;
+  --bg-main: #0f172a;
+  --bg-card: #1e293b;
+  --bg-subtle: #334155;
+  --bg-elevated-subtle: #162032;
+  --bg-badge: rgba(59, 130, 246, 0.16);
+  --border-badge: rgba(96, 165, 250, 0.35);
+  --bg-danger-subtle: rgba(239, 68, 68, 0.14);
+  --bg-danger-subtle-hover: rgba(239, 68, 68, 0.24);
+  --border-danger-subtle: rgba(248, 113, 113, 0.35);
+  --bg-code-inline: #334155;
+  --bg-code-block: #020617;
+  --text-code-block: #e2e8f0;
+  --border: #334155;
+  --text-main: #f1f5f9;
+  --text-muted: #94a3b8;
+  --status-success-bg: rgba(34, 197, 94, 0.16);
+  --status-success-text: #86efac;
+  --status-error-bg: rgba(239, 68, 68, 0.16);
+  --status-error-text: #fca5a5;
+  --status-warning-bg: rgba(245, 158, 11, 0.18);
+  --status-warning-text: #fcd34d;
+  --status-info-bg: #334155;
+  --status-info-text: #e2e8f0;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --primary: #3b82f6;
+    --primary-hover: #2563eb;
+    --accent-text: #60a5fa;
+    --danger: #f87171;
+    --danger-hover: #ef4444;
+    --bg-main: #0f172a;
+    --bg-card: #1e293b;
+    --bg-subtle: #334155;
+    --bg-elevated-subtle: #162032;
+    --bg-badge: rgba(59, 130, 246, 0.16);
+    --border-badge: rgba(96, 165, 250, 0.35);
+    --bg-danger-subtle: rgba(239, 68, 68, 0.14);
+    --bg-danger-subtle-hover: rgba(239, 68, 68, 0.24);
+    --border-danger-subtle: rgba(248, 113, 113, 0.35);
+    --bg-code-inline: #334155;
+    --bg-code-block: #020617;
+    --text-code-block: #e2e8f0;
+    --border: #334155;
+    --text-main: #f1f5f9;
+    --text-muted: #94a3b8;
+    --status-success-bg: rgba(34, 197, 94, 0.16);
+    --status-success-text: #86efac;
+    --status-error-bg: rgba(239, 68, 68, 0.16);
+    --status-error-text: #fca5a5;
+    --status-warning-bg: rgba(245, 158, 11, 0.18);
+    --status-warning-text: #fcd34d;
+    --status-info-bg: #334155;
+    --status-info-text: #e2e8f0;
+  }
 }
 
 * {
@@ -63,29 +153,36 @@ body {
 .badge {
   font-size: 10px;
   font-weight: 600;
-  background-color: #eff6ff;
-  color: var(--primary);
+  background-color: var(--bg-badge);
+  color: var(--accent-text);
   padding: 2px 6px;
   border-radius: 10px;
-  border: 1px solid #bfdbfe;
+  border: 1px solid var(--border-badge);
   text-transform: capitalize;
   flex-shrink: 0;
 }
 
 .quick-model-select {
   margin-left: auto;
-  max-width: 165px;
+  max-width: 145px;
   min-width: 0;
   padding: 3px 6px;
   font-size: 11px;
   font-weight: 500;
   color: var(--text-main);
-  background-color: #f8fafc;
+  background-color: var(--bg-elevated-subtle);
   border: 1px solid var(--border);
   border-radius: 6px;
   outline: none;
   cursor: pointer;
   text-overflow: ellipsis;
+}
+
+.small-btn.theme-toggle-btn {
+  flex-shrink: 0;
+  padding: 3px 6px;
+  font-size: 12px;
+  line-height: 1;
 }
 
 .quick-model-select:focus {
@@ -95,7 +192,7 @@ body {
 /* Tabs */
 .tabs {
   display: flex;
-  background-color: #f1f5f9;
+  background-color: var(--bg-subtle);
   padding: 3px;
   border-radius: 8px;
   gap: 2px;
@@ -128,30 +225,30 @@ body {
   margin-top: 8px;
   padding: 6px 10px;
   border-radius: 6px;
-  background-color: #eff6ff;
-  border: 1px solid #bfdbfe;
+  background-color: var(--bg-badge);
+  border: 1px solid var(--border-badge);
 }
 
 .inference-status-text {
   font-size: 11px;
   font-weight: 500;
-  color: var(--primary);
+  color: var(--accent-text);
 }
 
 .small-btn.stop-btn {
-  background-color: #fff1f2;
-  border-color: #fecdd3;
+  background-color: var(--bg-danger-subtle);
+  border-color: var(--border-danger-subtle);
   color: var(--danger);
   font-weight: 600;
 }
 
 .small-btn.stop-btn:hover {
-  background-color: #ffe4e6;
+  background-color: var(--bg-danger-subtle-hover);
 }
 
 .reasoning-details {
   border-bottom: 1px solid var(--border);
-  background-color: #f8fafc;
+  background-color: var(--bg-elevated-subtle);
   padding: 6px 12px;
   font-size: 11.5px;
 }
@@ -225,7 +322,7 @@ body {
 
 .manual-paper-details summary {
   font-size: 11px;
-  color: var(--primary);
+  color: var(--accent-text);
   cursor: pointer;
   user-select: none;
 }
@@ -260,7 +357,7 @@ body {
   font-family: var(--font-mono);
   font-size: 12px;
   color: var(--text-main);
-  background: #f8fafc;
+  background: var(--bg-elevated-subtle);
   padding: 8px;
   border-radius: 6px;
   border: 1px dashed var(--border);
@@ -288,7 +385,7 @@ body {
   gap: 6px;
   padding: 8px 10px;
   border-top: 1px solid var(--border);
-  background-color: #f8fafc;
+  background-color: var(--bg-elevated-subtle);
 }
 
 .followup-input {
@@ -332,7 +429,7 @@ body {
 }
 
 .action-btn:hover {
-  background-color: #f1f5f9;
+  background-color: var(--bg-subtle);
 }
 
 .action-btn.primary {
@@ -346,13 +443,13 @@ body {
 }
 
 .action-btn.danger {
-  background-color: #fff1f2;
-  border-color: #fecdd3;
+  background-color: var(--bg-danger-subtle);
+  border-color: var(--border-danger-subtle);
   color: var(--danger);
 }
 
 .action-btn.danger:hover {
-  background-color: #ffe4e6;
+  background-color: var(--bg-danger-subtle-hover);
 }
 
 /* Output Area */
@@ -372,7 +469,7 @@ body {
   justify-content: space-between;
   align-items: center;
   padding: 8px 12px;
-  background-color: #f8fafc;
+  background-color: var(--bg-elevated-subtle);
   border-bottom: 1px solid var(--border);
 }
 
@@ -386,13 +483,14 @@ body {
   font-size: 11px;
   padding: 2px 8px;
   background: transparent;
+  color: var(--text-main);
   border: 1px solid var(--border);
   border-radius: 4px;
   cursor: pointer;
 }
 
 .small-btn:hover {
-  background: #ffffff;
+  background: var(--bg-card);
 }
 
 .markdown-body {
@@ -445,14 +543,14 @@ body {
 .markdown-body code {
   font-family: var(--font-mono);
   font-size: 11.5px;
-  background-color: #f1f5f9;
+  background-color: var(--bg-code-inline);
   padding: 1px 4px;
   border-radius: 4px;
 }
 
 .markdown-body pre {
-  background-color: #0f172a;
-  color: #f8fafc;
+  background-color: var(--bg-code-block);
+  color: var(--text-code-block);
   padding: 10px;
   border-radius: 6px;
   overflow-x: auto;
@@ -506,6 +604,7 @@ body {
   font-family: inherit;
   outline: none;
   background: var(--bg-card);
+  color: var(--text-main);
 }
 
 .form-control:focus {
@@ -559,7 +658,8 @@ body {
 
 .btn-test {
   padding: 8px 12px;
-  background-color: #f1f5f9;
+  background-color: var(--bg-subtle);
+  color: var(--text-main);
   border: 1px solid var(--border);
   border-radius: 6px;
   font-size: 12px;
@@ -573,10 +673,30 @@ body {
   display: none;
 }
 
+.status-msg.is-success {
+  background-color: var(--status-success-bg);
+  color: var(--status-success-text);
+}
+
+.status-msg.is-error {
+  background-color: var(--status-error-bg);
+  color: var(--status-error-text);
+}
+
+.status-msg.is-warning {
+  background-color: var(--status-warning-bg);
+  color: var(--status-warning-text);
+}
+
+.status-msg.is-info {
+  background-color: var(--status-info-bg);
+  color: var(--status-info-text);
+}
+
 .security-notice {
   font-size: 11px;
   color: var(--text-muted);
-  background-color: #f8fafc;
+  background-color: var(--bg-elevated-subtle);
   padding: 10px;
   border-radius: 6px;
   border: 1px dashed var(--border);

@@ -15,6 +15,14 @@
         <span class="logo-text">PaperPilot</span>
         <span class="badge" id="provider-badge">Magpie</span>
         <select id="quick-model-select" class="quick-model-select" data-testid="quick-model-select" title="快速切换模型" aria-label="快速切换模型"></select>
+        <button
+          type="button"
+          id="btn-toggle-theme"
+          class="small-btn theme-toggle-btn"
+          data-testid="btn-toggle-theme"
+          title="切换主题（跟随系统 / 深色 / 浅色）"
+          aria-label="切换主题"
+        >🌗</button>
       </div>
       <div class="tabs">
         <button class="tab-btn active" data-tab="tab-overview">全文速读</button>
@@ -161,6 +169,15 @@
           <select id="select-capsule-enabled" class="form-control">
             <option value="true">开启（仅限学术论文站点）</option>
             <option value="false">关闭（仅使用侧边栏直接输入或快捷键）</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="select-theme">外观主题 (Theme)</label>
+          <select id="select-theme" class="form-control" data-testid="select-theme">
+            <option value="system">跟随系统 (System)</option>
+            <option value="light">浅色模式 (Light)</option>
+            <option value="dark">深色模式 (Dark)</option>
           </select>
         </div>
 
