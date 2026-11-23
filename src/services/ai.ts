@@ -7,8 +7,10 @@ export interface ChatMessage {
 
 export interface StreamCallbacks {
   onChunk: (delta: string) => void;
+  onReasoningChunk?: (delta: string) => void;
   onError: (error: Error) => void;
   onFinish: (fullText: string) => void;
+  onAbort?: (partialText: string) => void;
 }
 
 export const ACADEMIC_PROMPTS = {
@@ -84,6 +86,9 @@ export async function streamAIChat(
       }
 
       await parseSSE(res, (data) => {
+        if (data.type === 'content_block_delta' && data.delta?.thinking) {
+          callbacks.onReasoningChunk?.(data.delta.thinking);
+        }
         if (data.type === 'content_block_delta' && data.delta?.text) {
           fullOutput += data.delta.text;
           callbacks.onChunk(data.delta.text);
@@ -123,7 +128,11 @@ export async function streamAIChat(
       }
 
       await parseSSE(res, (data) => {
-        const content = data.choices?.[0]?.delta?.content;
+        const delta = data.choices?.[0]?.delta;
+        if (delta?.reasoning_content) {
+          callbacks.onReasoningChunk?.(delta.reasoning_content);
+        }
+        const content = delta?.content;
         if (content) {
           fullOutput += content;
           callbacks.onChunk(content);
@@ -135,6 +144,7 @@ export async function streamAIChat(
   } catch (error: any) {
     if (signal?.aborted) {
       console.log('[PaperPilot] Inference aborted by user.');
+      callbacks.onAbort?.(fullOutput);
     } else {
       callbacks.onError(error instanceof Error ? error : new Error(String(error)));
     }

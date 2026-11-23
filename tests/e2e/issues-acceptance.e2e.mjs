@@ -12,7 +12,7 @@ import {
  * permanent regression checks. Before implementation, run a specific check with:
  *   VERIFY_ISSUES=2 npm run verify:acceptance
  */
-const IMPLEMENTED_ISSUES = new Set([2, 3, 4, 5, 6]);
+const IMPLEMENTED_ISSUES = new Set([2, 3, 4, 5, 6, 7]);
 
 function parseRequestedIssues() {
   const raw = process.env.VERIFY_ISSUES?.trim();
@@ -337,6 +337,10 @@ describe('PaperPilot Issue Acceptance Matrix (#2 - #10)', () => {
     await panel.waitForFunction(() =>
       document.querySelector('#overview-output')?.textContent?.includes('梯度下降收敛')
     );
+    const reasoningVisible = await panel.isVisible('#overview-reasoning');
+    assert.equal(reasoningVisible, true, 'Collapsible reasoning block should appear');
+    const reasoningSummary = await panel.textContent('#overview-reasoning-summary');
+    assert.match(reasoningSummary || '', /思考过程（耗时/);
     await captureAcceptanceScreenshot(panel, 'issue-7-stop-and-reasoning.png');
 
     await panel.close();
