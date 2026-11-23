@@ -612,6 +612,12 @@ body {
   box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
 }
 
+.custom-prompt-input {
+  resize: vertical;
+  min-height: 64px;
+  line-height: 1.45;
+}
+
 .input-with-action {
   display: flex;
   align-items: center;

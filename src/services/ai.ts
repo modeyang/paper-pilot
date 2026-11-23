@@ -1,4 +1,4 @@
-import { UserConfig } from './storage';
+import { OutputLanguage, UserConfig } from './storage';
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
@@ -12,6 +12,8 @@ export interface StreamCallbacks {
   onFinish: (fullText: string) => void;
   onAbort?: (partialText: string) => void;
 }
+
+export type AcademicPromptTask = 'intuition' | 'critique' | 'summary' | 'plain';
 
 export const ACADEMIC_PROMPTS = {
   intuition: `你是一位世界顶级的学术导师和数学/物理直觉翻译大师。
@@ -36,7 +38,30 @@ export const ACADEMIC_PROMPTS = {
 - 💡 【关键创新解法】：（1句话说明作者提出的核心架构或方法）
 - 📊 【关键 SOTA 数据】：（提升幅度与评测基准）
 - ⚠️ 【当前主要局限】：（未解决的问题与未来方向）`,
+
+  plain: '你是一位精通化繁为简的学术导师，请用大白话彻底讲透输入的这段学术文本。',
 };
+
+export function buildSystemPrompt(
+  task: AcademicPromptTask,
+  config: Pick<UserConfig, 'outputLanguage' | 'customSystemPrompt' | 'systemPromptPreset'>
+): string {
+  const lang: OutputLanguage = config.outputLanguage === 'en' ? 'en' : 'zh';
+  const basePrompt = ACADEMIC_PROMPTS[task];
+  const custom = config.customSystemPrompt?.trim();
+  const langDirective =
+    lang === 'en'
+      ? 'Output Language Requirement: Please respond entirely in clear, academic English (including all headings and bullet points).'
+      : '输出语言要求：请使用简体中文回答。';
+
+  if (config.systemPromptPreset === 'custom' && custom) {
+    return `${custom}\n\n${langDirective}`;
+  }
+  if (custom) {
+    return `${basePrompt}\n\n${langDirective}\n\nAdditional user instructions:\n${custom}`;
+  }
+  return `${basePrompt}\n\n${langDirective}`;
+}
 
 /**
  * 统一的大模型 SSE 流式请求客户端

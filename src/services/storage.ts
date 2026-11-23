@@ -1,5 +1,6 @@
 export type ProviderType = 'magpie' | 'deepseek' | 'openai' | 'anthropic' | 'ollama';
 export type ThemeMode = 'system' | 'light' | 'dark';
+export type OutputLanguage = 'zh' | 'en';
 
 export interface UserConfig {
   provider: ProviderType;
@@ -8,6 +9,7 @@ export interface UserConfig {
   model: string;
   capsuleEnabled: boolean;
   theme: ThemeMode;
+  outputLanguage: OutputLanguage;
   systemPromptPreset: 'intuition' | 'critique' | 'summary' | 'custom';
   customSystemPrompt?: string;
 }
@@ -19,7 +21,9 @@ export const DEFAULT_CONFIG: UserConfig = {
   model: 'auto/deepseek-v4.1-flash',
   capsuleEnabled: true,
   theme: 'system',
+  outputLanguage: 'zh',
   systemPromptPreset: 'intuition',
+  customSystemPrompt: '',
 };
 
 export const PROVIDER_DEFAULTS: Record<ProviderType, { baseUrl: string; model: string }> = {

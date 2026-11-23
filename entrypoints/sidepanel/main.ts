@@ -1,6 +1,6 @@
 import 'katex/dist/katex.min.css';
-import { getStoredConfig, saveStoredConfig, PROVIDER_DEFAULTS, UserConfig, ProviderType, ThemeMode } from '../../src/services/storage';
-import { streamAIChat, ACADEMIC_PROMPTS, ChatMessage } from '../../src/services/ai';
+import { getStoredConfig, saveStoredConfig, PROVIDER_DEFAULTS, UserConfig, ProviderType, ThemeMode, OutputLanguage } from '../../src/services/storage';
+import { streamAIChat, buildSystemPrompt, ChatMessage } from '../../src/services/ai';
 import { renderMarkdownInto } from '../../src/utils/markdown';
 
 const EMPTY_PAPER_DATA = {
@@ -92,6 +92,8 @@ const elements = {
   modelSuggestions: document.getElementById('model-suggestions') as HTMLDataListElement,
   selectCapsuleEnabled: document.getElementById('select-capsule-enabled') as HTMLSelectElement,
   selectTheme: document.getElementById('select-theme') as HTMLSelectElement,
+  selectOutputLanguage: document.getElementById('select-output-language') as HTMLSelectElement,
+  inputCustomPrompt: document.getElementById('input-custom-prompt') as HTMLTextAreaElement,
   btnSaveSettings: document.getElementById('btn-save-settings') as HTMLButtonElement,
   btnTestConnection: document.getElementById('btn-test-connection') as HTMLButtonElement,
   settingsStatus: document.getElementById('settings-status') as HTMLDivElement,
@@ -294,6 +296,8 @@ function readSettingsFormDraft(): Partial<UserConfig> {
     model: elements.inputModel.value.trim(),
     capsuleEnabled: elements.selectCapsuleEnabled.value !== 'false',
     theme: (elements.selectTheme.value as ThemeMode) || 'system',
+    outputLanguage: (elements.selectOutputLanguage.value as OutputLanguage) || 'zh',
+    customSystemPrompt: elements.inputCustomPrompt.value.trim(),
   };
 }
 
@@ -306,7 +310,9 @@ function hasUnsavedSettingsChanges(): boolean {
     draft.baseUrl !== currentConfig.baseUrl ||
     draft.model !== currentConfig.model ||
     draft.capsuleEnabled !== (currentConfig.capsuleEnabled ?? true) ||
-    draft.theme !== (currentConfig.theme ?? 'system')
+    draft.theme !== (currentConfig.theme ?? 'system') ||
+    draft.outputLanguage !== (currentConfig.outputLanguage ?? 'zh') ||
+    draft.customSystemPrompt !== (currentConfig.customSystemPrompt ?? '').trim()
   );
 }
 
@@ -335,6 +341,8 @@ function updateUIFromConfig() {
   elements.selectCapsuleEnabled.value = String(currentConfig.capsuleEnabled ?? true);
   const activeTheme = currentConfig.theme ?? 'system';
   elements.selectTheme.value = activeTheme;
+  elements.selectOutputLanguage.value = currentConfig.outputLanguage ?? 'zh';
+  elements.inputCustomPrompt.value = currentConfig.customSystemPrompt ?? '';
   applyThemeMode(activeTheme);
   updateApiKeyFieldHint(currentConfig.provider);
   populateQuickModelOptions(currentConfig.provider);
@@ -409,6 +417,8 @@ function setupEventListeners() {
     elements.inputBaseUrl,
     elements.inputModel,
     elements.selectCapsuleEnabled,
+    elements.selectOutputLanguage,
+    elements.inputCustomPrompt,
   ];
   for (const inputEl of dirtyWatchInputs) {
     inputEl.addEventListener('input', syncSettingsDirtyState);
@@ -550,12 +560,20 @@ function setupEventListeners() {
 
   // 一键速读
   elements.btnTldr.addEventListener('click', () => {
-    runPaperAnalysis(ACADEMIC_PROMPTS.summary, '请对以下论文进行 4 维核心解析：');
+    const prefix =
+      currentConfig.outputLanguage === 'en'
+        ? 'Please distill this paper along 4 core dimensions:'
+        : '请对以下论文进行 4 维核心解析：';
+    runPaperAnalysis(buildSystemPrompt('summary', currentConfig), prefix);
   });
 
   // 审稿人盲评
   elements.btnCritique.addEventListener('click', () => {
-    runPaperAnalysis(ACADEMIC_PROMPTS.critique, '请针对以下论文进行严苛审稿人盲评：');
+    const prefix =
+      currentConfig.outputLanguage === 'en'
+        ? 'Please conduct a rigorous blind peer critique of this paper:'
+        : '请针对以下论文进行严苛审稿人盲评：';
+    runPaperAnalysis(buildSystemPrompt('critique', currentConfig), prefix);
   });
 
   // 公式直觉解读
@@ -565,11 +583,15 @@ function setupEventListeners() {
       elements.selectionOutput.textContent = '请先在论文页面中划选一段公式或数学推导，或直接在上方文本框输入。';
       return;
     }
+    const promptPrefix =
+      currentConfig.outputLanguage === 'en'
+        ? 'Explain the following mathematical formula or algorithm with intuition and analogies:'
+        : '请用直觉与生活化类比解读以下数学公式/算法：';
     startTabConversation(
       'selection',
       [
-        { role: 'system', content: ACADEMIC_PROMPTS.intuition },
-        { role: 'user', content: `请用直觉与生活化类比解读以下数学公式/算法：\n\n${text}` },
+        { role: 'system', content: buildSystemPrompt('intuition', currentConfig) },
+        { role: 'user', content: `${promptPrefix}\n\n${text}` },
       ],
       elements.selectionOutput
     );
@@ -585,7 +607,7 @@ function setupEventListeners() {
     startTabConversation(
       'selection',
       [
-        { role: 'system', content: '你是一位精通化繁为简的学术导师，请用大白话彻底讲透输入的这段学术文本。' },
+        { role: 'system', content: buildSystemPrompt('plain', currentConfig) },
         { role: 'user', content: text },
       ],
       elements.selectionOutput
@@ -612,7 +634,7 @@ function setupEventListeners() {
             return;
           }
           session.history.push(
-            { role: 'system', content: ACADEMIC_PROMPTS.summary },
+            { role: 'system', content: buildSystemPrompt('summary', currentConfig) },
             {
               role: 'user',
               content: `当前论文参考：\n标题: ${currentPaperData.title}\n摘要: ${currentPaperData.abstract}`,
@@ -626,7 +648,7 @@ function setupEventListeners() {
             return;
           }
           session.history.push(
-            { role: 'system', content: ACADEMIC_PROMPTS.intuition },
+            { role: 'system', content: buildSystemPrompt('intuition', currentConfig) },
             { role: 'user', content: `参考内容：\n${selText}` }
           );
         }
