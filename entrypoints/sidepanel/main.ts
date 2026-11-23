@@ -18,6 +18,8 @@ let elapsedTimerId: number | null = null;
 let inferenceStartMs = 0;
 let currentPaperData = { ...EMPTY_PAPER_DATA };
 let currentSelection = '';
+let cachedModelsKey = '';
+let cachedDiscoveredModels: Array<{ id: string; label?: string }> = [];
 
 interface TabChatSession {
   history: ChatMessage[];
@@ -29,9 +31,18 @@ const chatSessions: Record<'overview' | 'selection', TabChatSession> = {
   selection: { history: [], renderedTranscript: '' },
 };
 
+const PROVIDER_PRESET_MODELS: Record<ProviderType, Array<{ id: string; label?: string }>> = {
+  magpie: [{ id: PROVIDER_DEFAULTS.magpie.model }],
+  deepseek: [{ id: 'deepseek-chat' }, { id: 'deepseek-reasoner' }],
+  openai: [{ id: 'gpt-4o-mini' }, { id: 'gpt-4o' }],
+  anthropic: [{ id: 'claude-3-5-sonnet-20241022' }, { id: 'claude-3-5-haiku-20241022' }],
+  ollama: [{ id: 'llama3' }, { id: 'qwen2.5' }],
+};
+
 // DOM 元素引用
 const elements = {
   providerBadge: document.getElementById('provider-badge') as HTMLSpanElement,
+  quickModelSelect: document.getElementById('quick-model-select') as HTMLSelectElement,
   inferenceStatusBar: document.getElementById('inference-status-bar') as HTMLDivElement,
   inferenceStatusText: document.getElementById('inference-status-text') as HTMLSpanElement,
   btnStopInference: document.getElementById('btn-stop-inference') as HTMLButtonElement,
@@ -72,7 +83,9 @@ const elements = {
 
   // Settings Tab
   selectProvider: document.getElementById('select-provider') as HTMLSelectElement,
+  labelApiKey: document.getElementById('label-api-key') as HTMLLabelElement,
   inputApiKey: document.getElementById('input-api-key') as HTMLInputElement,
+  btnToggleApiKey: document.getElementById('btn-toggle-api-key') as HTMLButtonElement,
   inputBaseUrl: document.getElementById('input-base-url') as HTMLInputElement,
   inputModel: document.getElementById('input-model') as HTMLInputElement,
   modelSuggestions: document.getElementById('model-suggestions') as HTMLDataListElement,
@@ -92,10 +105,52 @@ async function init() {
   void refreshModelSuggestions(currentConfig.provider, currentConfig.baseUrl);
 }
 
-// 从本地 Magpie 网关动态拉取可用模型列表用于输入框自动补全
+function populateQuickModelOptions(
+  provider: ProviderType,
+  discovered?: Array<{ id: string; label?: string }>
+) {
+  if (!elements.quickModelSelect) return;
+  const currentKey = `${provider}:${elements.inputBaseUrl.value.trim() || PROVIDER_DEFAULTS[provider]?.baseUrl || ''}`;
+  const modelList = discovered ?? (cachedModelsKey === currentKey ? cachedDiscoveredModels : []);
+  const seen = new Set<string>();
+  const candidates: Array<{ id: string; label: string }> = [];
+  const activeModel = elements.inputModel.value.trim() || currentConfig?.model || '';
+
+  const pushOption = (id: string, label?: string) => {
+    const cleanId = id.trim();
+    if (!cleanId || seen.has(cleanId)) return;
+    seen.add(cleanId);
+    candidates.push({ id: cleanId, label: label?.trim() || cleanId });
+  };
+
+  for (const item of modelList) {
+    pushOption(item.id, item.label);
+  }
+  for (const preset of PROVIDER_PRESET_MODELS[provider] || []) {
+    pushOption(preset.id, preset.label);
+  }
+  if (activeModel) {
+    pushOption(activeModel, activeModel);
+  }
+
+  elements.quickModelSelect.innerHTML = '';
+  for (const candidate of candidates) {
+    const opt = document.createElement('option');
+    opt.value = candidate.id;
+    opt.textContent = candidate.label;
+    elements.quickModelSelect.appendChild(opt);
+  }
+  if (activeModel && seen.has(activeModel)) {
+    elements.quickModelSelect.value = activeModel;
+  }
+}
+
+// 从本地 Magpie 网关动态拉取可用模型列表用于输入框自动补全与顶部快速切换
 async function refreshModelSuggestions(provider: ProviderType, baseUrl: string) {
-  if (!elements.modelSuggestions) return;
-  elements.modelSuggestions.innerHTML = '';
+  if (elements.modelSuggestions) {
+    elements.modelSuggestions.innerHTML = '';
+  }
+  populateQuickModelOptions(provider);
   if (provider !== 'magpie') return;
 
   try {
@@ -105,16 +160,23 @@ async function refreshModelSuggestions(provider: ProviderType, baseUrl: string) 
     if (!res.ok) return;
     const json = await res.json();
     const models = Array.isArray(json?.data) ? json.data : [];
+    const discovered: Array<{ id: string; label?: string }> = [];
     for (const item of models) {
       if (typeof item?.id === 'string') {
-        const opt = document.createElement('option');
-        opt.value = item.id;
-        if (item.display_name) opt.label = item.display_name;
-        elements.modelSuggestions.appendChild(opt);
+        discovered.push({ id: item.id, label: item.display_name || item.id });
+        if (elements.modelSuggestions) {
+          const opt = document.createElement('option');
+          opt.value = item.id;
+          if (item.display_name) opt.label = item.display_name;
+          elements.modelSuggestions.appendChild(opt);
+        }
       }
     }
+    cachedModelsKey = `${provider}:${baseUrl.trim()}`;
+    cachedDiscoveredModels = discovered;
+    populateQuickModelOptions(provider, discovered);
   } catch {
-    // 网关未启动时静默降级，仍允许手动输入模型名
+    // 网关未启动时静默降级，仍保留预设与手动输入模型名
   }
 }
 
@@ -189,6 +251,57 @@ function applyCapturedSelection(selectedText: string, autoExplain: boolean) {
   }
 }
 
+function updateApiKeyFieldHint(provider: ProviderType) {
+  const isLocalGateway = provider === 'magpie' || provider === 'ollama';
+  if (elements.labelApiKey) {
+    elements.labelApiKey.textContent = isLocalGateway
+      ? 'API Key (本地服务免填，保存在本地沙箱)'
+      : 'API Key (保存在本地沙箱)';
+  }
+  elements.inputApiKey.placeholder = isLocalGateway
+    ? '本地网关无需 API Key（可选）'
+    : provider === 'anthropic'
+      ? 'sk-ant-...'
+      : 'sk-...';
+}
+
+function readSettingsFormDraft(): Partial<UserConfig> {
+  return {
+    provider: elements.selectProvider.value as ProviderType,
+    apiKey: elements.inputApiKey.value.trim(),
+    baseUrl: elements.inputBaseUrl.value.trim(),
+    model: elements.inputModel.value.trim(),
+    capsuleEnabled: elements.selectCapsuleEnabled.value !== 'false',
+  };
+}
+
+function hasUnsavedSettingsChanges(): boolean {
+  if (!currentConfig) return false;
+  const draft = readSettingsFormDraft();
+  return (
+    draft.provider !== currentConfig.provider ||
+    draft.apiKey !== currentConfig.apiKey ||
+    draft.baseUrl !== currentConfig.baseUrl ||
+    draft.model !== currentConfig.model ||
+    draft.capsuleEnabled !== (currentConfig.capsuleEnabled ?? true)
+  );
+}
+
+function syncSettingsDirtyState() {
+  const dirty = hasUnsavedSettingsChanges();
+  elements.btnSaveSettings.classList.toggle('is-dirty', dirty);
+  elements.btnSaveSettings.textContent = dirty ? '保存配置 *' : '保存配置';
+
+  if (dirty) {
+    elements.settingsStatus.dataset.dirty = 'true';
+    showStatus('⚠️ 有未保存修改：测试连通性将使用当前表单值，业务推理需先点击「保存配置」。', 'warning', true);
+  } else if (elements.settingsStatus.dataset.dirty === 'true') {
+    delete elements.settingsStatus.dataset.dirty;
+    elements.settingsStatus.style.display = 'none';
+    elements.settingsStatus.textContent = '';
+  }
+}
+
 // 同步配置到 UI
 function updateUIFromConfig() {
   elements.providerBadge.textContent = currentConfig.provider;
@@ -197,6 +310,9 @@ function updateUIFromConfig() {
   elements.inputBaseUrl.value = currentConfig.baseUrl;
   elements.inputModel.value = currentConfig.model;
   elements.selectCapsuleEnabled.value = String(currentConfig.capsuleEnabled ?? true);
+  updateApiKeyFieldHint(currentConfig.provider);
+  populateQuickModelOptions(currentConfig.provider);
+  syncSettingsDirtyState();
 }
 
 // 事件绑定
@@ -215,26 +331,51 @@ function setupEventListeners() {
     });
   });
 
+  // 顶部快速切换模型并立即持久化
+  elements.quickModelSelect.addEventListener('change', async () => {
+    const nextModel = elements.quickModelSelect.value.trim();
+    if (!nextModel) return;
+    elements.inputModel.value = nextModel;
+    await saveStoredConfig({ model: nextModel });
+    currentConfig = await getStoredConfig();
+    syncSettingsDirtyState();
+  });
+
+  // API Key 显隐切换
+  elements.btnToggleApiKey.addEventListener('click', () => {
+    const reveal = elements.inputApiKey.type === 'password';
+    elements.inputApiKey.type = reveal ? 'text' : 'password';
+    elements.btnToggleApiKey.textContent = reveal ? '🙈' : '👁';
+    elements.btnToggleApiKey.setAttribute('aria-pressed', String(reveal));
+  });
+
   // 切换 Provider 时自动补全推荐 BaseURL 与 Model
   elements.selectProvider.addEventListener('change', () => {
     const provider = elements.selectProvider.value as ProviderType;
     const defaults = PROVIDER_DEFAULTS[provider];
+    updateApiKeyFieldHint(provider);
     if (defaults) {
       elements.inputBaseUrl.value = defaults.baseUrl;
       elements.inputModel.value = defaults.model;
       void refreshModelSuggestions(provider, defaults.baseUrl);
     }
+    syncSettingsDirtyState();
   });
+
+  const dirtyWatchInputs = [
+    elements.inputApiKey,
+    elements.inputBaseUrl,
+    elements.inputModel,
+    elements.selectCapsuleEnabled,
+  ];
+  for (const inputEl of dirtyWatchInputs) {
+    inputEl.addEventListener('input', syncSettingsDirtyState);
+    inputEl.addEventListener('change', syncSettingsDirtyState);
+  }
 
   // 保存配置
   elements.btnSaveSettings.addEventListener('click', async () => {
-    const updated: Partial<UserConfig> = {
-      provider: elements.selectProvider.value as ProviderType,
-      apiKey: elements.inputApiKey.value.trim(),
-      baseUrl: elements.inputBaseUrl.value.trim(),
-      model: elements.inputModel.value.trim(),
-      capsuleEnabled: elements.selectCapsuleEnabled.value !== 'false',
-    };
+    const updated = readSettingsFormDraft();
     await saveStoredConfig(updated);
     currentConfig = await getStoredConfig();
     updateUIFromConfig();
@@ -257,7 +398,12 @@ function setupEventListeners() {
         {
           onChunk: () => {},
           onError: (err) => showStatus(`连接失败: ${err.message}`, 'error'),
-          onFinish: () => showStatus('✅ 连通性测试通过！API 状态正常。', 'success'),
+          onFinish: () => {
+            const suffix = hasUnsavedSettingsChanges()
+              ? '（注意：当前有未保存修改，需点击「保存配置」才会应用于业务推理）'
+              : '';
+            showStatus(`✅ 连通性测试通过！API 状态正常。${suffix}`, 'success');
+          },
         }
       );
     } catch (e: any) {
@@ -674,13 +820,32 @@ function listenToRuntimeMessages() {
   });
 }
 
-function showStatus(msg: string, type: 'success' | 'error' | 'info') {
+function showStatus(
+  msg: string,
+  type: 'success' | 'error' | 'info' | 'warning',
+  preserveDirtyFlag = false
+) {
+  if (!preserveDirtyFlag) {
+    delete elements.settingsStatus.dataset.dirty;
+  }
   elements.settingsStatus.textContent = msg;
   elements.settingsStatus.style.display = 'block';
   elements.settingsStatus.style.backgroundColor =
-    type === 'success' ? '#dcfce7' : type === 'error' ? '#fee2e2' : '#f1f5f9';
+    type === 'success'
+      ? '#dcfce7'
+      : type === 'error'
+        ? '#fee2e2'
+        : type === 'warning'
+          ? '#fef3c7'
+          : '#f1f5f9';
   elements.settingsStatus.style.color =
-    type === 'success' ? '#166534' : type === 'error' ? '#991b1b' : '#334155';
+    type === 'success'
+      ? '#166534'
+      : type === 'error'
+        ? '#991b1b'
+        : type === 'warning'
+          ? '#92400e'
+          : '#334155';
 }
 
 init();

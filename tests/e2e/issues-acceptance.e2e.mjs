@@ -12,7 +12,7 @@ import {
  * permanent regression checks. Before implementation, run a specific check with:
  *   VERIFY_ISSUES=2 npm run verify:acceptance
  */
-const IMPLEMENTED_ISSUES = new Set([2, 3, 4, 5, 6, 7]);
+const IMPLEMENTED_ISSUES = new Set([2, 3, 4, 5, 6, 7, 8]);
 
 function parseRequestedIssues() {
   const raw = process.env.VERIFY_ISSUES?.trim();
@@ -352,8 +352,21 @@ describe('PaperPilot Issue Acceptance Matrix (#2 - #10)', () => {
     await panel.goto(env.sidepanelUrl, { waitUntil: 'domcontentloaded' });
 
     await panel.click('[data-tab="tab-settings"]');
+
+    // Local Magpie gateway should indicate no API key needed instead of sk-...
+    const placeholder = await panel.getAttribute('#input-api-key', 'placeholder');
+    assert.ok(placeholder && placeholder.includes('无需 API Key'), `Expected local hint, got ${placeholder}`);
+
+    // Unsaved settings indicator appears on edit and clears on save
+    await panel.fill('#input-api-key', 'test-unsaved-key');
+    const dirtyStatus = await panel.textContent('#settings-status');
+    assert.match(dirtyStatus || '', /未保存/);
     await panel.click('[data-testid="btn-toggle-api-key"]');
     assert.equal(await panel.getAttribute('#input-api-key', 'type'), 'text');
+    await panel.click('#btn-save-settings');
+    await panel.waitForFunction(() =>
+      document.querySelector('#settings-status')?.textContent?.includes('已安全保存')
+    );
 
     // Quick model selector in header should list Magpie models & switch directly
     const quickModel = panel.locator('[data-testid="quick-model-select"]');

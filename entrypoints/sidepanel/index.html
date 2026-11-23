@@ -14,6 +14,7 @@
         <span class="logo-icon">🎓</span>
         <span class="logo-text">PaperPilot</span>
         <span class="badge" id="provider-badge">Magpie</span>
+        <select id="quick-model-select" class="quick-model-select" data-testid="quick-model-select" title="快速切换模型" aria-label="快速切换模型"></select>
       </div>
       <div class="tabs">
         <button class="tab-btn active" data-tab="tab-overview">全文速读</button>
@@ -129,8 +130,19 @@
         </div>
 
         <div class="form-group">
-          <label for="input-api-key">API Key (保存在本地沙箱)</label>
-          <input type="password" id="input-api-key" class="form-control" placeholder="sk-..." />
+          <label for="input-api-key" id="label-api-key">API Key (保存在本地沙箱)</label>
+          <div class="input-with-action">
+            <input type="password" id="input-api-key" class="form-control" placeholder="sk-..." />
+            <button
+              type="button"
+              id="btn-toggle-api-key"
+              class="small-btn toggle-secret-btn"
+              data-testid="btn-toggle-api-key"
+              aria-label="显示或隐藏 API Key"
+              aria-pressed="false"
+              title="显示/隐藏 API Key"
+            >👁</button>
+          </div>
         </div>
 
         <div class="form-group">

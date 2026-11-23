@@ -69,6 +69,27 @@ body {
   border-radius: 10px;
   border: 1px solid #bfdbfe;
   text-transform: capitalize;
+  flex-shrink: 0;
+}
+
+.quick-model-select {
+  margin-left: auto;
+  max-width: 165px;
+  min-width: 0;
+  padding: 3px 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-main);
+  background-color: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  outline: none;
+  cursor: pointer;
+  text-overflow: ellipsis;
+}
+
+.quick-model-select:focus {
+  border-color: var(--primary);
 }
 
 /* Tabs */
@@ -490,6 +511,32 @@ body {
 .form-control:focus {
   border-color: var(--primary);
   box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+
+.input-with-action {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.input-with-action .form-control {
+  flex: 1;
+  min-width: 0;
+}
+
+.small-btn.toggle-secret-btn {
+  flex-shrink: 0;
+  padding: 7px 9px;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.btn-save.is-dirty {
+  background-color: #d97706;
+}
+
+.btn-save.is-dirty:hover {
+  background-color: #b45309;
 }
 
 .form-actions {
