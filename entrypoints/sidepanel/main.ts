@@ -14,6 +14,8 @@ const DEFAULT_PAPER_PLACEHOLDER = '未检测到学术论文（请打开 arXiv / 
 // 运行时状态
 let currentConfig: UserConfig;
 let activeAbortController: AbortController | null = null;
+let elapsedTimerId: number | null = null;
+let inferenceStartMs = 0;
 let currentPaperData = { ...EMPTY_PAPER_DATA };
 let currentSelection = '';
 
@@ -30,6 +32,9 @@ const chatSessions: Record<'overview' | 'selection', TabChatSession> = {
 // DOM 元素引用
 const elements = {
   providerBadge: document.getElementById('provider-badge') as HTMLSpanElement,
+  inferenceStatusBar: document.getElementById('inference-status-bar') as HTMLDivElement,
+  inferenceStatusText: document.getElementById('inference-status-text') as HTMLSpanElement,
+  btnStopInference: document.getElementById('btn-stop-inference') as HTMLButtonElement,
   tabButtons: document.querySelectorAll<HTMLButtonElement>('.tab-btn'),
   tabPanes: document.querySelectorAll<HTMLElement>('.tab-pane'),
 
@@ -44,6 +49,9 @@ const elements = {
   btnTldr: document.getElementById('btn-tldr') as HTMLButtonElement,
   btnCritique: document.getElementById('btn-critique') as HTMLButtonElement,
   overviewOutput: document.getElementById('overview-output') as HTMLDivElement,
+  overviewReasoning: document.getElementById('overview-reasoning') as HTMLDetailsElement,
+  overviewReasoningSummary: document.getElementById('overview-reasoning-summary') as HTMLElement,
+  overviewReasoningBody: document.getElementById('overview-reasoning-body') as HTMLDivElement,
   btnCopyOverview: document.getElementById('btn-copy-overview') as HTMLButtonElement,
   btnResetOverview: document.getElementById('btn-reset-overview') as HTMLButtonElement,
   inputOverviewFollowup: document.getElementById('input-overview-followup') as HTMLInputElement,
@@ -54,6 +62,9 @@ const elements = {
   btnExplainFormula: document.getElementById('btn-explain-formula') as HTMLButtonElement,
   btnExplainPlain: document.getElementById('btn-explain-plain') as HTMLButtonElement,
   selectionOutput: document.getElementById('selection-output') as HTMLDivElement,
+  selectionReasoning: document.getElementById('selection-reasoning') as HTMLDetailsElement,
+  selectionReasoningSummary: document.getElementById('selection-reasoning-summary') as HTMLElement,
+  selectionReasoningBody: document.getElementById('selection-reasoning-body') as HTMLDivElement,
   btnCopySelection: document.getElementById('btn-copy-selection') as HTMLButtonElement,
   btnResetSelection: document.getElementById('btn-reset-selection') as HTMLButtonElement,
   inputSelectionFollowup: document.getElementById('input-selection-followup') as HTMLInputElement,
@@ -463,11 +474,21 @@ function setupEventListeners() {
     elements.selectionOutput
   );
 
+  // 主动停止流式生成
+  elements.btnStopInference.addEventListener('click', () => {
+    if (activeAbortController) {
+      activeAbortController.abort();
+      activeAbortController = null;
+    }
+    stopInferenceStatus();
+  });
+
   // 重置会话绑定
   function bindResetButton(
     tab: 'overview' | 'selection',
     btn: HTMLButtonElement,
     outputEl: HTMLElement,
+    reasoningEl: HTMLDetailsElement,
     placeholder: string
   ) {
     btn.addEventListener('click', () => {
@@ -475,9 +496,12 @@ function setupEventListeners() {
         activeAbortController.abort();
         activeAbortController = null;
       }
+      stopInferenceStatus();
       chatSessions[tab] = { history: [], renderedTranscript: '' };
       delete outputEl.dataset.rawText;
       outputEl.textContent = placeholder;
+      reasoningEl.hidden = true;
+      reasoningEl.open = false;
     });
   }
 
@@ -485,12 +509,14 @@ function setupEventListeners() {
     'overview',
     elements.btnResetOverview,
     elements.overviewOutput,
+    elements.overviewReasoning,
     '点击上方按钮，基于当前论文自动进行专业研读分析...'
   );
   bindResetButton(
     'selection',
     elements.btnResetSelection,
     elements.selectionOutput,
+    elements.selectionReasoning,
     '等待生成直觉解读...'
   );
 
@@ -507,6 +533,40 @@ function setupEventListeners() {
   bindCopyButton(elements.btnCopySelection, elements.selectionOutput);
 }
 
+function getReasoningElements(tab: 'overview' | 'selection') {
+  return tab === 'overview'
+    ? {
+        details: elements.overviewReasoning,
+        summary: elements.overviewReasoningSummary,
+        body: elements.overviewReasoningBody,
+      }
+    : {
+        details: elements.selectionReasoning,
+        summary: elements.selectionReasoningSummary,
+        body: elements.selectionReasoningBody,
+      };
+}
+
+function startInferenceStatus() {
+  stopInferenceStatus();
+  inferenceStartMs = Date.now();
+  elements.inferenceStatusBar.hidden = false;
+  elements.inferenceStatusText.textContent = '⏳ 正在推理中（0.0s）...';
+  elapsedTimerId = window.setInterval(() => {
+    const sec = ((Date.now() - inferenceStartMs) / 1000).toFixed(1);
+    elements.inferenceStatusText.textContent = `⏳ 正在推理中（${sec}s）...`;
+  }, 100);
+}
+
+function stopInferenceStatus(): string {
+  if (elapsedTimerId !== null) {
+    clearInterval(elapsedTimerId);
+    elapsedTimerId = null;
+  }
+  elements.inferenceStatusBar.hidden = true;
+  return inferenceStartMs ? ((Date.now() - inferenceStartMs) / 1000).toFixed(1) : '0.0';
+}
+
 // 统一流式推理调度
 function runInference(tab: 'overview' | 'selection', targetEl: HTMLElement, transcriptPrefix: string) {
   if (!currentConfig.apiKey && currentConfig.provider !== 'ollama' && currentConfig.provider !== 'magpie') {
@@ -518,7 +578,15 @@ function runInference(tab: 'overview' | 'selection', targetEl: HTMLElement, tran
   if (activeAbortController) {
     activeAbortController.abort();
   }
-  activeAbortController = new AbortController();
+  const controller = new AbortController();
+  activeAbortController = controller;
+  startInferenceStatus();
+
+  const reasoningUI = getReasoningElements(tab);
+  reasoningUI.details.hidden = true;
+  reasoningUI.details.open = false;
+  reasoningUI.body.textContent = '';
+  let reasoningAccumulated = '';
 
   const session = chatSessions[tab];
   if (transcriptPrefix) {
@@ -533,22 +601,58 @@ function runInference(tab: 'overview' | 'selection', targetEl: HTMLElement, tran
     session.history,
     currentConfig,
     {
+      onReasoningChunk: (delta) => {
+        reasoningAccumulated += delta;
+        reasoningUI.details.hidden = false;
+        reasoningUI.details.open = true;
+        reasoningUI.summary.textContent = '💭 思考过程（推理中...）';
+        reasoningUI.body.textContent = reasoningAccumulated;
+      },
       onChunk: (delta) => {
         accumulated += delta;
         renderMarkdownInto(targetEl, `${transcriptPrefix}${accumulated}`);
       },
+      onAbort: (partial) => {
+        if (activeAbortController === controller) {
+          activeAbortController = null;
+        }
+        const elapsed = stopInferenceStatus();
+        if (reasoningAccumulated) {
+          reasoningUI.summary.textContent = `💭 思考过程（已中断，${elapsed}s）`;
+        }
+        if (partial) {
+          renderMarkdownInto(targetEl, `${transcriptPrefix}${partial}\n\n*(已手动停止生成)*`);
+        } else if (transcriptPrefix) {
+          renderMarkdownInto(targetEl, `${transcriptPrefix}*(已手动停止生成)*`);
+        } else {
+          delete targetEl.dataset.rawText;
+          targetEl.textContent = '已停止生成。';
+        }
+      },
       onError: (err) => {
+        if (activeAbortController === controller) {
+          activeAbortController = null;
+        }
+        stopInferenceStatus();
         delete targetEl.dataset.rawText;
         targetEl.innerHTML = `<span style="color:#dc2626;">调用出错: ${err.message}</span>`;
       },
       onFinish: (full) => {
+        if (activeAbortController === controller) {
+          activeAbortController = null;
+        }
+        const elapsed = stopInferenceStatus();
+        if (reasoningAccumulated) {
+          reasoningUI.summary.textContent = `💭 思考过程（耗时 ${elapsed}s）`;
+          reasoningUI.details.open = false;
+        }
         const finalTranscript = `${transcriptPrefix}${full}`;
         session.renderedTranscript = finalTranscript;
         session.history.push({ role: 'assistant', content: full });
         renderMarkdownInto(targetEl, finalTranscript);
       },
     },
-    activeAbortController.signal
+    controller.signal
   );
 }
 
