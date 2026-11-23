@@ -5,6 +5,7 @@ export interface UserConfig {
   apiKey: string;
   baseUrl: string;
   model: string;
+  capsuleEnabled: boolean;
   systemPromptPreset: 'intuition' | 'critique' | 'summary' | 'custom';
   customSystemPrompt?: string;
 }
@@ -14,6 +15,7 @@ export const DEFAULT_CONFIG: UserConfig = {
   apiKey: '',
   baseUrl: 'http://127.0.0.1:3425/v1',
   model: 'auto/deepseek-v4.1-flash',
+  capsuleEnabled: true,
   systemPromptPreset: 'intuition',
 };
 

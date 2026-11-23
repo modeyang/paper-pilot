@@ -12,7 +12,7 @@ import {
  * permanent regression checks. Before implementation, run a specific check with:
  *   VERIFY_ISSUES=2 npm run verify:acceptance
  */
-const IMPLEMENTED_ISSUES = new Set([2, 3, 4, 5]);
+const IMPLEMENTED_ISSUES = new Set([2, 3, 4, 5, 6]);
 
 function parseRequestedIssues() {
   const raw = process.env.VERIFY_ISSUES?.trim();
@@ -242,6 +242,7 @@ describe('PaperPilot Issue Acceptance Matrix (#2 - #10)', () => {
   issueTest(6, 'clamps floating capsule inside viewport, accepts short formulas, and avoids non-academic noise', async () => {
     // Top-right edge selection should keep capsule within viewport
     const arxivPage = await env.context.newPage();
+    await arxivPage.setViewportSize({ width: 900, height: 600 });
     await arxivPage.goto(FIXTURE_URLS.arxivAbs, { waitUntil: 'networkidle' });
 
     await arxivPage.evaluate(() => {

@@ -43,6 +43,13 @@ describe('MV3 Build & Compliance Gate', () => {
         `Unexpected permission "${perm}" — keep permissions minimal for CWS compliance`
       );
     }
+
+    for (const cs of manifest.content_scripts || []) {
+      assert.ok(
+        !(cs.matches || []).includes('<all_urls>'),
+        'content_scripts must not inject into <all_urls> (CWS compliance)'
+      );
+    }
   });
 
   test('extension bundle stays under 3MB (PRD NFR)', () => {

@@ -65,6 +65,7 @@ const elements = {
   inputBaseUrl: document.getElementById('input-base-url') as HTMLInputElement,
   inputModel: document.getElementById('input-model') as HTMLInputElement,
   modelSuggestions: document.getElementById('model-suggestions') as HTMLDataListElement,
+  selectCapsuleEnabled: document.getElementById('select-capsule-enabled') as HTMLSelectElement,
   btnSaveSettings: document.getElementById('btn-save-settings') as HTMLButtonElement,
   btnTestConnection: document.getElementById('btn-test-connection') as HTMLButtonElement,
   settingsStatus: document.getElementById('settings-status') as HTMLDivElement,
@@ -184,6 +185,7 @@ function updateUIFromConfig() {
   elements.inputApiKey.value = currentConfig.apiKey;
   elements.inputBaseUrl.value = currentConfig.baseUrl;
   elements.inputModel.value = currentConfig.model;
+  elements.selectCapsuleEnabled.value = String(currentConfig.capsuleEnabled ?? true);
 }
 
 // 事件绑定
@@ -220,6 +222,7 @@ function setupEventListeners() {
       apiKey: elements.inputApiKey.value.trim(),
       baseUrl: elements.inputBaseUrl.value.trim(),
       model: elements.inputModel.value.trim(),
+      capsuleEnabled: elements.selectCapsuleEnabled.value !== 'false',
     };
     await saveStoredConfig(updated);
     currentConfig = await getStoredConfig();
