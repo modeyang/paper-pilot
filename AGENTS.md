@@ -98,8 +98,7 @@ To test in Chrome manually: open `chrome://extensions`, enable **Developer mode*
 ## Known Discrepancies / Remaining Technical Debt
 
 Agents picking up tasks in this repo should be aware of the following remaining items:
-1. **Content Script Match Scope**: `entrypoints/content.ts` includes `'<all_urls>'` in `matches`, whereas `docs/01-PRD-REQUIREMENTS.md` recommends avoiding `<all_urls>` for Chrome Web Store review compliance.
-2. **Extension Icons**: `docs/04-STORE-PUBLISHING-GUIDE.md` expects `16`/`48`/`128` px PNG icons in the manifest; currently only `assets/icon.svg` exists and `wxt.config.ts` does not configure `icons`.
+1. **Extension Icons**: `docs/04-STORE-PUBLISHING-GUIDE.md` expects `16`/`48`/`128` px PNG icons in the manifest; currently only `assets/icon.svg` exists and `wxt.config.ts` does not configure `icons`.
 
 ## Agent skills
 
