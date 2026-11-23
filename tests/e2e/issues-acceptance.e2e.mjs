@@ -12,7 +12,7 @@ import {
  * permanent regression checks. Before implementation, run a specific check with:
  *   VERIFY_ISSUES=2 npm run verify:acceptance
  */
-const IMPLEMENTED_ISSUES = new Set([2, 3, 4, 5, 6, 7, 8, 9]);
+const IMPLEMENTED_ISSUES = new Set([2, 3, 4, 5, 6, 7, 8, 9, 10]);
 
 function parseRequestedIssues() {
   const raw = process.env.VERIFY_ISSUES?.trim();
@@ -437,6 +437,10 @@ describe('PaperPilot Issue Acceptance Matrix (#2 - #10)', () => {
     await panel.selectOption('[data-testid="select-output-language"]', 'en');
     await panel.fill('[data-testid="input-custom-prompt"]', 'Always include Big-O complexity.');
     await panel.click('#btn-save-settings');
+    await panel.waitForFunction(() =>
+      document.querySelector('#settings-status')?.textContent?.includes('已安全保存')
+    );
+    await captureAcceptanceScreenshot(panel, 'issue-10-prompt-language.png');
 
     await panel.click('[data-tab="tab-overview"]');
     env.state.recordedRequests.length = 0;
@@ -448,7 +452,8 @@ describe('PaperPilot Issue Acceptance Matrix (#2 - #10)', () => {
     );
 
     const sysMsg = env.state.recordedRequests.at(-1).body.messages.find((m) => m.role === 'system')?.content || '';
-    assert.match(sysMsg, /English|english|Always include Big-O complexity/);
+    assert.match(sysMsg, /English/i);
+    assert.match(sysMsg, /Always include Big-O complexity/);
 
     await panel.close();
     await arxivPage.close();
