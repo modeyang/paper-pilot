@@ -1,5 +1,5 @@
 import 'katex/dist/katex.min.css';
-import { getStoredConfig, saveStoredConfig, PROVIDER_DEFAULTS, UserConfig, ProviderType } from '../../src/services/storage';
+import { getStoredConfig, saveStoredConfig, PROVIDER_DEFAULTS, UserConfig, ProviderType, ThemeMode } from '../../src/services/storage';
 import { streamAIChat, ACADEMIC_PROMPTS, ChatMessage } from '../../src/services/ai';
 import { renderMarkdownInto } from '../../src/utils/markdown';
 
@@ -43,6 +43,7 @@ const PROVIDER_PRESET_MODELS: Record<ProviderType, Array<{ id: string; label?: s
 const elements = {
   providerBadge: document.getElementById('provider-badge') as HTMLSpanElement,
   quickModelSelect: document.getElementById('quick-model-select') as HTMLSelectElement,
+  btnToggleTheme: document.getElementById('btn-toggle-theme') as HTMLButtonElement,
   inferenceStatusBar: document.getElementById('inference-status-bar') as HTMLDivElement,
   inferenceStatusText: document.getElementById('inference-status-text') as HTMLSpanElement,
   btnStopInference: document.getElementById('btn-stop-inference') as HTMLButtonElement,
@@ -90,6 +91,7 @@ const elements = {
   inputModel: document.getElementById('input-model') as HTMLInputElement,
   modelSuggestions: document.getElementById('model-suggestions') as HTMLDataListElement,
   selectCapsuleEnabled: document.getElementById('select-capsule-enabled') as HTMLSelectElement,
+  selectTheme: document.getElementById('select-theme') as HTMLSelectElement,
   btnSaveSettings: document.getElementById('btn-save-settings') as HTMLButtonElement,
   btnTestConnection: document.getElementById('btn-test-connection') as HTMLButtonElement,
   settingsStatus: document.getElementById('settings-status') as HTMLDivElement,
@@ -265,6 +267,25 @@ function updateApiKeyFieldHint(provider: ProviderType) {
       : 'sk-...';
 }
 
+const THEME_BUTTON_META: Record<ThemeMode, { icon: string; title: string }> = {
+  system: { icon: '🌗', title: '主题：跟随系统（点击切换为深色）' },
+  dark: { icon: '🌙', title: '主题：深色模式（点击切换为浅色）' },
+  light: { icon: '☀️', title: '主题：浅色模式（点击切换为跟随系统）' },
+};
+
+function applyThemeMode(theme: ThemeMode = 'system') {
+  if (theme === 'system') {
+    delete document.documentElement.dataset.theme;
+  } else {
+    document.documentElement.dataset.theme = theme;
+  }
+  if (elements.btnToggleTheme) {
+    const meta = THEME_BUTTON_META[theme] || THEME_BUTTON_META.system;
+    elements.btnToggleTheme.textContent = meta.icon;
+    elements.btnToggleTheme.title = meta.title;
+  }
+}
+
 function readSettingsFormDraft(): Partial<UserConfig> {
   return {
     provider: elements.selectProvider.value as ProviderType,
@@ -272,6 +293,7 @@ function readSettingsFormDraft(): Partial<UserConfig> {
     baseUrl: elements.inputBaseUrl.value.trim(),
     model: elements.inputModel.value.trim(),
     capsuleEnabled: elements.selectCapsuleEnabled.value !== 'false',
+    theme: (elements.selectTheme.value as ThemeMode) || 'system',
   };
 }
 
@@ -283,7 +305,8 @@ function hasUnsavedSettingsChanges(): boolean {
     draft.apiKey !== currentConfig.apiKey ||
     draft.baseUrl !== currentConfig.baseUrl ||
     draft.model !== currentConfig.model ||
-    draft.capsuleEnabled !== (currentConfig.capsuleEnabled ?? true)
+    draft.capsuleEnabled !== (currentConfig.capsuleEnabled ?? true) ||
+    draft.theme !== (currentConfig.theme ?? 'system')
   );
 }
 
@@ -310,6 +333,9 @@ function updateUIFromConfig() {
   elements.inputBaseUrl.value = currentConfig.baseUrl;
   elements.inputModel.value = currentConfig.model;
   elements.selectCapsuleEnabled.value = String(currentConfig.capsuleEnabled ?? true);
+  const activeTheme = currentConfig.theme ?? 'system';
+  elements.selectTheme.value = activeTheme;
+  applyThemeMode(activeTheme);
   updateApiKeyFieldHint(currentConfig.provider);
   populateQuickModelOptions(currentConfig.provider);
   syncSettingsDirtyState();
@@ -341,6 +367,17 @@ function setupEventListeners() {
     syncSettingsDirtyState();
   });
 
+  // 顶部快捷切换主题（跟随系统 -> 深色 -> 浅色）并立即持久化
+  elements.btnToggleTheme.addEventListener('click', async () => {
+    const current = (currentConfig?.theme ?? 'system') as ThemeMode;
+    const nextTheme: ThemeMode = current === 'system' ? 'dark' : current === 'dark' ? 'light' : 'system';
+    applyThemeMode(nextTheme);
+    elements.selectTheme.value = nextTheme;
+    await saveStoredConfig({ theme: nextTheme });
+    currentConfig = await getStoredConfig();
+    syncSettingsDirtyState();
+  });
+
   // API Key 显隐切换
   elements.btnToggleApiKey.addEventListener('click', () => {
     const reveal = elements.inputApiKey.type === 'password';
@@ -359,6 +396,11 @@ function setupEventListeners() {
       elements.inputModel.value = defaults.model;
       void refreshModelSuggestions(provider, defaults.baseUrl);
     }
+    syncSettingsDirtyState();
+  });
+
+  elements.selectTheme.addEventListener('change', () => {
+    applyThemeMode((elements.selectTheme.value as ThemeMode) || 'system');
     syncSettingsDirtyState();
   });
 
@@ -829,23 +871,8 @@ function showStatus(
     delete elements.settingsStatus.dataset.dirty;
   }
   elements.settingsStatus.textContent = msg;
+  elements.settingsStatus.className = `status-msg is-${type}`;
   elements.settingsStatus.style.display = 'block';
-  elements.settingsStatus.style.backgroundColor =
-    type === 'success'
-      ? '#dcfce7'
-      : type === 'error'
-        ? '#fee2e2'
-        : type === 'warning'
-          ? '#fef3c7'
-          : '#f1f5f9';
-  elements.settingsStatus.style.color =
-    type === 'success'
-      ? '#166534'
-      : type === 'error'
-        ? '#991b1b'
-        : type === 'warning'
-          ? '#92400e'
-          : '#334155';
 }
 
 init();

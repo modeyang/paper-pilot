@@ -1,4 +1,5 @@
 export type ProviderType = 'magpie' | 'deepseek' | 'openai' | 'anthropic' | 'ollama';
+export type ThemeMode = 'system' | 'light' | 'dark';
 
 export interface UserConfig {
   provider: ProviderType;
@@ -6,6 +7,7 @@ export interface UserConfig {
   baseUrl: string;
   model: string;
   capsuleEnabled: boolean;
+  theme: ThemeMode;
   systemPromptPreset: 'intuition' | 'critique' | 'summary' | 'custom';
   customSystemPrompt?: string;
 }
@@ -16,6 +18,7 @@ export const DEFAULT_CONFIG: UserConfig = {
   baseUrl: 'http://127.0.0.1:3425/v1',
   model: 'auto/deepseek-v4.1-flash',
   capsuleEnabled: true,
+  theme: 'system',
   systemPromptPreset: 'intuition',
 };
 

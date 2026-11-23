@@ -12,7 +12,7 @@ import {
  * permanent regression checks. Before implementation, run a specific check with:
  *   VERIFY_ISSUES=2 npm run verify:acceptance
  */
-const IMPLEMENTED_ISSUES = new Set([2, 3, 4, 5, 6, 7, 8]);
+const IMPLEMENTED_ISSUES = new Set([2, 3, 4, 5, 6, 7, 8, 9]);
 
 function parseRequestedIssues() {
   const raw = process.env.VERIFY_ISSUES?.trim();
@@ -383,11 +383,44 @@ describe('PaperPilot Issue Acceptance Matrix (#2 - #10)', () => {
     await panel.emulateMedia({ colorScheme: 'dark' });
     await panel.goto(env.sidepanelUrl, { waitUntil: 'domcontentloaded' });
 
-    const bgRgb = await panel.evaluate(() => getComputedStyle(document.body).backgroundColor);
-    const match = bgRgb.match(/\d+/g)?.map(Number) || [255, 255, 255];
-    const luminance = (0.299 * match[0] + 0.587 * match[1] + 0.114 * match[2]) / 255;
-    assert.ok(luminance < 0.35, `Expected dark background under dark mode, got ${bgRgb}`);
+    const readBodyLum = () =>
+      panel.evaluate(() => {
+        const rgb = getComputedStyle(document.body).backgroundColor;
+        const m = rgb.match(/\d+/g)?.map(Number) || [255, 255, 255];
+        return (0.299 * m[0] + 0.587 * m[1] + 0.114 * m[2]) / 255;
+      });
+    const colors = await panel.evaluate(() => ({
+      bodyBg: getComputedStyle(document.body).backgroundColor,
+      bodyText: getComputedStyle(document.body).color,
+      cardBg: getComputedStyle(document.querySelector('.card')).backgroundColor,
+    }));
+    const parseLum = (rgb) => {
+      const m = rgb.match(/\d+/g)?.map(Number) || [255, 255, 255];
+      return (0.299 * m[0] + 0.587 * m[1] + 0.114 * m[2]) / 255;
+    };
+    assert.ok(parseLum(colors.bodyBg) < 0.35, `Expected dark body background, got ${colors.bodyBg}`);
+    assert.ok(parseLum(colors.cardBg) < 0.35, `Expected dark card background, got ${colors.cardBg}`);
+    assert.ok(parseLum(colors.bodyText) > 0.7, `Expected light body text, got ${colors.bodyText}`);
     await captureAcceptanceScreenshot(panel, 'issue-9-dark-mode.png');
+
+    // Manual override via Settings dropdown & quick header toggle
+    await panel.click('[data-tab="tab-settings"]');
+    await panel.selectOption('[data-testid="select-theme"]', 'light');
+    assert.ok((await readBodyLum()) > 0.8, 'Manual light override should force light background');
+
+    // Header toggle cycles system -> dark -> light -> system; verify forced dark under light OS media
+    await panel.emulateMedia({ colorScheme: 'light' });
+    await panel.selectOption('[data-testid="select-theme"]', 'system');
+    await panel.click('#btn-save-settings');
+    await panel.waitForFunction(() =>
+      document.querySelector('#settings-status')?.textContent?.includes('已安全保存')
+    );
+    await panel.click('[data-testid="btn-toggle-theme"]'); // system -> dark
+    assert.ok((await readBodyLum()) < 0.35, 'Header toggle should switch to dark mode');
+
+    // Reset back to system for clean test isolation
+    await panel.click('[data-testid="btn-toggle-theme"]'); // dark -> light
+    await panel.click('[data-testid="btn-toggle-theme"]'); // light -> system
 
     await panel.close();
   });
